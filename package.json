@@ -1,0 +1,38 @@
+{
+  "name": "widget-chatbot",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Widget de chatbot para CRM - Agente Isa",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "docker:build": "docker build -t widget-chatbot-isa .",
+    "docker:run": "docker run -d --name widget-chatbot -p 8080:80 widget-chatbot-isa",
+    "docker:stop": "docker stop widget-chatbot && docker rm widget-chatbot",
+    "docker:logs": "docker logs -f widget-chatbot",
+    "docker:up": "docker-compose up -d --build",
+    "docker:down": "docker-compose down",
+    "docker:restart": "docker-compose restart"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "socket.io-client": "^4.7.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@typescript-eslint/eslint-plugin": "^7.13.1",
+    "@typescript-eslint/parser": "^7.13.1",
+    "@vitejs/plugin-react": "^4.3.1",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react-hooks": "^4.6.2",
+    "eslint-plugin-react-refresh": "^0.4.7",
+    "typescript": "^5.5.3",
+    "vite": "^5.3.1"
+  }
+}
+
+

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ejemplo de Integración en ERP - Chatbot Isa</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .erp-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #001689;
+        }
+        .info-box {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="erp-container">
+        <h1>Ejemplo de Integración del Widget Chatbot Isa en ERP</h1>
+        
+        <div class="info-box">
+            <strong>📌 Nota:</strong> Este es un ejemplo de cómo se vería el widget integrado en tu ERP.
+            El widget aparece en la esquina inferior derecha.
+        </div>
+
+        <h2>Contenido del ERP</h2>
+        <p>Aquí iría el contenido normal de tu ERP: formularios, tablas, reportes, etc.</p>
+        
+        <h3>Ejemplo de Formulario</h3>
+        <form>
+            <label>Nombre:</label>
+            <input type="text" placeholder="Ingrese nombre">
+            <br><br>
+            <label>Email:</label>
+            <input type="email" placeholder="Ingrese email">
+            <br><br>
+            <button type="submit">Guardar</button>
+        </form>
+
+        <h3>Ejemplo de Tabla</h3>
+        <table border="1" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Nombre</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1</td>
+                    <td>Cliente A</td>
+                    <td>Activo</td>
+                    <td><button>Editar</button></td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>Cliente B</td>
+                    <td>Inactivo</td>
+                    <td><button>Editar</button></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- =========================================== -->
+    <!-- INTEGRACIÓN DEL WIDGET CHATBOT ISA -->
+    <!-- =========================================== -->
+    
+    <!-- Opción 1: Iframe Directo -->
+    <iframe 
+        id="isa-chatbot-widget"
+        src="http://localhost:8080"
+        style="
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            width: 400px;
+            height: 650px;
+            border: none;
+            z-index: 9999;
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+            border-radius: 20px 20px 0 0;
+        "
+        title="Chatbot Isa"
+        allow="microphone"
+        frameborder="0"
+    ></iframe>
+
+    <style>
+        /* Responsive para el widget */
+        @media (max-width: 768px) {
+            #isa-chatbot-widget {
+                width: 100%;
+                height: 100vh;
+                border-radius: 0;
+            }
+        }
+    </style>
+
+    <!-- Opción 2: Script Loader (comentado - descomentar para usar) -->
+    <!--
+    <script>
+        window.IsaWidgetConfig = {
+            widgetUrl: 'http://localhost:8080',
+            position: 'bottom-right',
+            zIndex: 9999,
+            width: 400,
+            height: 650
+        };
+    </script>
+    <script src="http://localhost:8080/isa-widget-loader.js"></script>
+    -->
+
+</body>
+</html>

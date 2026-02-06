@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ejemplos de Integración CRM - Chatbot Isa</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #001689;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+        
+        h2 {
+            color: #001689;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+            border-bottom: 2px solid #001689;
+            padding-bottom: 10px;
+        }
+        
+        .intro {
+            color: #666;
+            line-height: 1.8;
+            margin-bottom: 30px;
+            font-size: 1.1em;
+        }
+        
+        .example-section {
+            background: #f9f9f9;
+            border-left: 4px solid #001689;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        
+        .example-section h3 {
+            color: #001689;
+            margin-bottom: 15px;
+        }
+        
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 20px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        
+        .code-block code {
+            display: block;
+            white-space: pre;
+        }
+        
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        
+        .note strong {
+            color: #856404;
+        }
+        
+        ul {
+            margin-left: 20px;
+            margin-top: 10px;
+        }
+        
+        li {
+            margin-bottom: 8px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Guía de Integración CRM - Chatbot Isa</h1>
+        
+        <p class="intro">
+            Esta página contiene ejemplos prácticos para integrar el widget del chatbot Isa 
+            en diferentes sistemas CRM. Elige el método que mejor se adapte a tu plataforma.
+        </p>
+        
+        <!-- Método 1: Iframe Directo -->
+        <div class="example-section">
+            <h2>Método 1: Iframe Directo</h2>
+            <h3>✅ Recomendado para la mayoría de CRMs</h3>
+            
+            <p>El método más simple y compatible. Solo copia y pega este código en tu CRM:</p>
+            
+            <div class="code-block">
+<code>&lt;!-- Widget Chatbot Isa --&gt;
+&lt;iframe 
+    id="isa-chatbot-widget"
+    src="https://tudominio.com/widget-chatbot/index.html"
+    style="
+        position: fixed;
+        bottom: 0;
+        right: 0;
+        width: 400px;
+        height: 650px;
+        border: none;
+        z-index: 9999;
+        box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2);
+        border-radius: 20px 20px 0 0;
+    "
+    title="Chatbot Isa"
+    allow="microphone"
+    frameborder="0"
+&gt;&lt;/iframe&gt;
+
+&lt;style&gt;
+    @media (max-width: 768px) {
+        #isa-chatbot-widget {
+            width: 100%;
+            height: 100vh;
+            border-radius: 0;
+        }
+    }
+&lt;/style&gt;</code>
+            </div>
+            
+            <div class="note">
+                <strong>Nota:</strong> Reemplaza <code>https://tudominio.com/widget-chatbot/index.html</code> 
+                con la URL real donde hayas desplegado el widget.
+            </div>
+        </div>
+        
+        <!-- Método 2: Script Loader -->
+        <div class="example-section">
+            <h2>Método 2: Script de Carga Dinámica</h2>
+            <h3>✅ Ideal para integraciones más flexibles</h3>
+            
+            <p>Usa el script loader para una integración más controlada:</p>
+            
+            <div class="code-block">
+<code>&lt;!-- Configuración opcional --&gt;
+&lt;script&gt;
+    window.IsaWidgetConfig = {
+        widgetUrl: 'https://tudominio.com/widget-chatbot/index.html',
+        position: 'bottom-right', // 'bottom-right' | 'bottom-left'
+        zIndex: 9999,
+        width: 400,
+        height: 650
+    };
+&lt;/script&gt;
+
+&lt;!-- Cargar el widget --&gt;
+&lt;script src="https://tudominio.com/widget-chatbot/isa-widget-loader.js"&gt;&lt;/script&gt;</code>
+            </div>
+        </div>
+        
+        <!-- Ejemplos por CRM -->
+        <div class="example-section">
+            <h2>Ejemplos por Plataforma CRM</h2>
+            
+            <h3>📊 Salesforce</h3>
+            <p>En un componente Lightning:</p>
+            <div class="code-block">
+<code>&lt;aura:component&gt;
+    &lt;iframe 
+        src="https://tudominio.com/widget-chatbot/index.html"
+        style="position: fixed; bottom: 0; right: 0; width: 400px; height: 650px; border: none; z-index: 9999;"
+        title="Chatbot Isa"
+    /&gt;
+&lt;/aura:component&gt;</code>
+            </div>
+            
+            <h3>💼 Microsoft Dynamics 365</h3>
+            <p>Como Web Resource o control de iFrame en formularios.</p>
+            
+            <h3>🔵 HubSpot</h3>
+            <p>En el editor de plantillas, agrega el iframe antes de <code>&lt;/body&gt;</code>.</p>
+            
+            <h3>📝 WordPress (con plugins CRM)</h3>
+            <p>Usa el plugin "Insert Headers and Footers" o edita <code>footer.php</code>.</p>
+        </div>
+        
+        <!-- Configuración Avanzada -->
+        <div class="example-section">
+            <h2>⚙️ Configuración Avanzada</h2>
+            
+            <h3>Cambiar Posición</h3>
+            <div class="code-block">
+<code>// Cambiar a esquina inferior izquierda
+var iframe = document.getElementById('isa-chatbot-widget');
+iframe.style.right = 'auto';
+iframe.style.left = '0';</code>
+            </div>
+            
+            <h3>Cambiar Tamaño</h3>
+            <div class="code-block">
+<code>// Personalizar dimensiones
+var iframe = document.getElementById('isa-chatbot-widget');
+iframe.style.width = '350px';
+iframe.style.height = '600px';</code>
+            </div>
+            
+            <h3>Controlar Visibilidad</h3>
+            <div class="code-block">
+<code>// Ocultar el widget
+IsaWidget.hide();
+
+// Mostrar el widget
+IsaWidget.show();
+
+// Eliminar el widget
+IsaWidget.remove();</code>
+            </div>
+        </div>
+        
+        <!-- Pasos de Despliegue -->
+        <div class="example-section">
+            <h2>🚀 Pasos para Desplegar</h2>
+            <ol>
+                <li><strong>Construir el widget:</strong> <code>npm run build</code></li>
+                <li><strong>Subir archivos:</strong> Sube la carpeta <code>dist/</code> a tu servidor</li>
+                <li><strong>Configurar URL:</strong> Asegúrate de que la URL sea accesible públicamente</li>
+                <li><strong>Integrar en CRM:</strong> Usa uno de los métodos mostrados arriba</li>
+                <li><strong>Probar:</strong> Verifica que el widget se muestre correctamente</li>
+            </ol>
+        </div>
+        
+        <!-- Notas Finales -->
+        <div class="note">
+            <strong>💡 Tip:</strong> Para producción, considera usar un CDN para mejorar el rendimiento 
+            y la disponibilidad del widget. También asegúrate de configurar HTTPS para mayor seguridad.
+        </div>
+    </div>
+</body>
+</html>
+
+

@@ -1,0 +1,25 @@
+.app-container {
+  width: 100%;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Responsive para el contenedor principal */
+@media (max-width: 768px) {
+  .app-container {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height para móviles */
+  }
+}
+
+@media (max-width: 480px) {
+  .app-container {
+    height: 100vh;
+    height: 100dvh; /* Dynamic viewport height para móviles */
+  }
+}
+
+

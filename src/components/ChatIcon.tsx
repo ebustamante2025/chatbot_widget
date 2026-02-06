@@ -1,0 +1,93 @@
+import './ChatIcon.css'
+
+function ChatIcon() {
+  return (
+    <svg
+      className="chat-icon"
+      viewBox="0 0 100 100"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      {/* Círculo de fondo azul oscuro */}
+      <circle cx="50" cy="50" r="50" fill="#001689" />
+      
+      {/* Cabeza del robot/avatar */}
+      <rect
+        x="30"
+        y="35"
+        width="40"
+        height="40"
+        rx="4"
+        fill="#64b5f6"
+        stroke="#ffffff"
+        strokeWidth="2"
+      />
+      
+      {/* Ojos */}
+      <circle cx="42" cy="50" r="3" fill="#000000" />
+      <circle cx="58" cy="50" r="3" fill="#000000" />
+      
+      {/* Sonrisa */}
+      <path
+        d="M 38 60 Q 50 68 62 60"
+        stroke="#000000"
+        strokeWidth="2"
+        fill="none"
+        strokeLinecap="round"
+      />
+      
+      {/* Auriculares */}
+      {/* Auricular izquierdo */}
+      <rect
+        x="20"
+        y="40"
+        width="12"
+        height="20"
+        rx="2"
+        fill="#64b5f6"
+        stroke="#ffffff"
+        strokeWidth="2"
+      />
+      
+      {/* Auricular derecho */}
+      <rect
+        x="68"
+        y="40"
+        width="12"
+        height="20"
+        rx="2"
+        fill="#64b5f6"
+        stroke="#ffffff"
+        strokeWidth="2"
+      />
+      
+      {/* Banda de los auriculares */}
+      <path
+        d="M 32 50 Q 50 45 68 50"
+        stroke="#ffffff"
+        strokeWidth="3"
+        fill="none"
+        strokeLinecap="round"
+      />
+      
+      {/* Micrófono */}
+      <line
+        x1="20"
+        y1="50"
+        x2="28"
+        y2="55"
+        stroke="#ffffff"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+      <circle
+        cx="28"
+        cy="58"
+        r="3"
+        fill="#ffffff"
+      />
+    </svg>
+  )
+}
+
+export default ChatIcon
+
