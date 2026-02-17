@@ -191,6 +191,23 @@ export async function enviarMensajeAgente(data: {
   return response.json();
 }
 
+// Guardar mensaje en BD (genérico: CONTACTO, BOT, SISTEMA)
+export async function guardarMensajeBD(data: {
+  empresa_id: number;
+  conversacion_id: number;
+  tipo_emisor: 'CONTACTO' | 'BOT' | 'SISTEMA';
+  contacto_id?: number;
+  contenido: string;
+}): Promise<{ mensaje: unknown }> {
+  const response = await fetch(`${API_BASE_URL}/mensajes`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+  if (!response.ok) throw new Error('Error al guardar mensaje');
+  return response.json();
+}
+
 // Crear nuevo contacto
 export async function crearContacto(data: CrearContactoRequest): Promise<Contacto> {
   const response = await fetch(`${API_BASE_URL}/contactos`, {
@@ -213,11 +230,11 @@ export async function crearContacto(data: CrearContactoRequest): Promise<Contact
 // --- Agente Isa (webhook) ---
 const ISA_AGENT_WEBHOOK_URL =
   import.meta.env.VITE_ISA_AGENT_WEBHOOK_URL ||
-  'https://agentehgi.hginet.com.co/webhook/prueba-api';
+  'https://agentehgi.hginet.com.co/webhook/72919732-5851-4c49-966f-36f638298c88';
 
 /**
  * Envía un mensaje al agente Isa y devuelve la respuesta.
- * Body: { sessionId, action: "sendMessage", chatInput }
+ * Body: { sessionId, action: "sendMessage", chatInput } 
  */
 export async function sendMessageToIsaAgent(
   sessionId: string,

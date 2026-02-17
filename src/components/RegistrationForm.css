@@ -202,44 +202,6 @@
   font-weight: 600;
 }
 
-.empresa-info {
-  background: #e3f2fd;
-  color: #001689;
-  padding: 8px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  margin-bottom: 8px;
-  border: 1px solid #90caf9;
-}
-
-.contacto-existente-info {
-  background: #d4edda;
-  color: #155724;
-  padding: 8px 10px;
-  border-radius: 6px;
-  font-size: 12px;
-  margin-bottom: 8px;
-  border: 1px solid #c3e6cb;
-}
-
-.contacto-existente-info p {
-  margin: 0 0 4px 0;
-}
-
-.contacto-existente-info p:last-child {
-  margin-bottom: 0;
-}
-
-.contacto-existente-title {
-  font-weight: 600;
-  margin-bottom: 4px !important;
-}
-
-.contacto-existente-hint {
-  font-size: 11px;
-  opacity: 0.9;
-  margin-top: 4px !important;
-}
 
 /* Estado de conexión backend / BD */
 .connection-status {
@@ -280,5 +242,136 @@
 
 .retry-connection-button:hover {
   background: #b71c1c;
+}
+
+/* ===== LICENCIAS INFO ===== */
+.licencias-info {
+  background: #f0f7ff;
+  border: 1px solid #bbdefb;
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+
+.licencias-titulo {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #1565c0;
+}
+
+.licencias-subtitulo {
+  margin: 0 0 6px 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #546e7a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.licencias-lista {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.licencia-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.licencia-item.licencia-activa {
+  background: #e8f5e9;
+}
+
+.licencia-item.licencia-inactiva {
+  background: #fce4ec;
+}
+
+.licencia-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-activa {
+  background: #43a047;
+}
+
+.dot-inactiva {
+  background: #e53935;
+}
+
+.licencia-nombre {
+  flex: 1;
+  font-weight: 500;
+  color: #263238;
+}
+
+.licencia-item.licencia-inactiva .licencia-nombre {
+  text-decoration: line-through;
+  color: #90a4ae;
+}
+
+.licencia-estado {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.estado-activa {
+  color: #2e7d32;
+}
+
+.estado-inactiva {
+  color: #c62828;
+}
+
+/* ===== LICENCIA SELECCIONABLE ===== */
+.licencia-item.licencia-seleccionable {
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: all 0.2s ease;
+  background: #e8f5e9;
+}
+
+.licencia-item.licencia-seleccionable:hover {
+  border-color: #43a047;
+  background: #c8e6c9;
+}
+
+.licencia-item.licencia-selected {
+  border-color: #001689;
+  background: #e3f2fd;
+  box-shadow: 0 0 0 1px #001689;
+}
+
+.licencia-check {
+  font-size: 14px;
+  font-weight: 700;
+  color: #001689;
+  flex-shrink: 0;
+}
+
+/* ===== DIRECTOR STEP ===== */
+.director-instruccion {
+  margin: 0 0 12px 0;
+  padding: 8px 12px;
+  background: #fff3e0;
+  border: 1px solid #ffe0b2;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e65100;
+  text-align: center;
 }
 

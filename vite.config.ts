@@ -22,7 +22,19 @@ export default defineConfig({
   server: {
     port: 3002,
     strictPort: true,
-    host: true // Permite acceso desde fuera del contenedor
+    host: true, // Permite acceso desde fuera del contenedor
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:3004',
+        changeOrigin: true,
+      },
+      '/socket.io': {
+        target: 'http://127.0.0.1:3004',
+        changeOrigin: true,
+        ws: true,
+        secure: false,
+      },
+    },
   },
   preview: {
     port: 4173,

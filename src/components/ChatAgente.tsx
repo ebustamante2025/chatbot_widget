@@ -8,8 +8,7 @@ import {
 import type { UserData } from '../types'
 import './ChatAgente.css'
 
-const TYPING_DEBOUNCE_MS = 400
-const TYPING_STOP_MS = 2000
+const TYPING_DEBOUNCE_MS = 300
 
 interface ChatAgenteProps {
   userData: UserData
@@ -26,7 +25,6 @@ function ChatAgente({ userData, onBack }: ChatAgenteProps) {
   const [agenteEscribiendo, setAgenteEscribiendo] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const socketRef = useRef<Socket | null>(null)
-  const typingStopRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // Una sola petición por apertura: reutilizar la misma promesa si el efecto se ejecuta dos veces (p. ej. Strict Mode)
   const initPromiseRef = useRef<Promise<{ id_conversacion: number; mensajes?: Array<{ id_mensaje?: number | string; tipo_emisor: string; contenido: string; creado_en: string }> }> | null>(null)
   const initKeyRef = useRef<string | null>(null)
@@ -111,27 +109,19 @@ function ChatAgente({ userData, onBack }: ChatAgenteProps) {
     return () => cancelAnimationFrame(raf)
   }, [mensajes])
 
-  // Emitir "está escribiendo" al CRM cuando el usuario escribe (debounce)
+  // Emitir "está escribiendo" + texto al CRM mientras haya texto en el input
   useEffect(() => {
     if (!conversacionId) return
     if (!texto.trim()) {
+      // Input vacío → avisar que dejó de escribir
       socketRef.current?.emit('typing_stop', { conversacionId })
       return
     }
+    // Debounce: enviar el texto actual después de un breve delay
     const t = setTimeout(() => {
-      socketRef.current?.emit('typing', { conversacionId, quien: 'contacto' })
-      typingStopRef.current = setTimeout(() => {
-        socketRef.current?.emit('typing_stop', { conversacionId })
-        typingStopRef.current = null
-      }, TYPING_STOP_MS)
+      socketRef.current?.emit('typing', { conversacionId, quien: 'contacto', texto: texto.trim() })
     }, TYPING_DEBOUNCE_MS)
-    return () => {
-      clearTimeout(t)
-      if (typingStopRef.current) {
-        clearTimeout(typingStopRef.current)
-        typingStopRef.current = null
-      }
-    }
+    return () => clearTimeout(t)
   }, [conversacionId, texto])
 
   const handleEnviar = async (e: React.FormEvent) => {

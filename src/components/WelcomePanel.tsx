@@ -26,7 +26,7 @@ function WelcomePanel({
         <button
           type="button"
           className="welcome-panel-option"
-          onClick={onSelectPreguntasFrecuentes}
+          onClick={() => window.open('http://localhost:3009', '_blank')}
           aria-label="Ver preguntas frecuentes"
         >
           <span className="welcome-panel-option-icon">❓</span>

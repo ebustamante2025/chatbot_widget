@@ -11,4 +11,5 @@ export interface UserData {
   funcionario: string
   empresaId?: number
   contactoId?: number
+  licencia?: string
 }

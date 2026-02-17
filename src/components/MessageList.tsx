@@ -2,6 +2,43 @@ import { useEffect, useRef } from 'react'
 import { Message } from '../types'
 import './MessageList.css'
 
+// Detectar líneas con viñetas: emojis numerados, •, -, *, números con punto/paréntesis
+const esLineaConViñeta = /^(\d️⃣|[•\-\*]|\d+[.)]\s)/
+
+function renderMensaje(texto: string) {
+  const lineas = texto.split(/\n/)
+  const tieneViñetas = lineas.some((l) => esLineaConViñeta.test(l.trim()))
+
+  if (!tieneViñetas && lineas.length <= 1) {
+    return <span>{texto}</span>
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      {lineas.map((linea, idx) => {
+        const trimmed = linea.trim()
+        if (!trimmed) return null
+
+        const esViñeta = esLineaConViñeta.test(trimmed)
+
+        return (
+          <div
+            key={idx}
+            style={{
+              paddingLeft: esViñeta ? 8 : 0,
+              display: 'flex',
+              alignItems: 'flex-start',
+              gap: 4,
+            }}
+          >
+            <span>{trimmed}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 interface MessageListProps {
   messages: Message[]
 }
@@ -38,7 +75,7 @@ function MessageList({ messages }: MessageListProps) {
           className={`message ${message.sender === 'user' ? 'message-user' : 'message-isa'}`}
         >
           <div className="message-content">
-            <p>{message.text}</p>
+            <div className="message-text">{renderMensaje(message.text)}</div>
             <span className="message-time">
               {message.timestamp.toLocaleTimeString('es-ES', {
                 hour: '2-digit',

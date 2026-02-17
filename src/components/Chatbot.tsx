@@ -7,7 +7,7 @@ import WelcomePanel from './WelcomePanel'
 import PreguntasFrecuentes from './PreguntasFrecuentes'
 import ChatAgente from './ChatAgente'
 import { Message, UserData } from '../types'
-import { sendMessageToIsaAgent } from '../services/api'
+import { sendMessageToIsaAgent, crearConversacion, guardarMensajeBD } from '../services/api'
 import './Chatbot.css'
 
 const AGENT_NAME = 'Isa'
@@ -26,6 +26,9 @@ function Chatbot() {
   const [view, setView] = useState<ViewAfterRegistration>('panel')
   const [isSending, setIsSending] = useState(false)
   const isaSessionIdRef = useRef<string>(generateSessionId())
+  // Conversación en BD para el chat con Isa
+  const isaConversacionIdRef = useRef<number | null>(null)
+  const creandoConversacionRef = useRef<boolean>(false)
 
   const handleRegistration = (data: UserData) => {
     setUserData(data)
@@ -35,21 +38,117 @@ function Chatbot() {
     const welcomeMessage: Message = {
       id: '1',
       text: `¡Hola ${data.funcionario} de ${data.empresa}! 👋
-    Soy ${AGENT_NAME}, tu asistente virtual.
-    
-    Por favor elige una opción escribiendo el número correspondiente:
-    
-    1️⃣ Nómina  
-    2️⃣ Administrativo  
-    3️⃣ Post  
-    4️⃣ Contable  
-    
-    ¿En qué puedo ayudarte hoy?`,
+Soy ${AGENT_NAME}, tu asistente virtual.`,
+
+
       sender: 'isa',
       timestamp: new Date()
     }
     
     setMessages([welcomeMessage])
+  }
+
+  // Crear conversación en BD para Isa (si no existe aún)
+  const asegurarConversacionIsa = async (): Promise<number | null> => {
+    if (isaConversacionIdRef.current) return isaConversacionIdRef.current
+    if (creandoConversacionRef.current) return null
+    if (!userData?.empresaId || !userData?.contactoId) return null
+
+    creandoConversacionRef.current = true
+    try {
+      const conv = await crearConversacion(userData.empresaId, userData.contactoId)
+      isaConversacionIdRef.current = conv.id_conversacion
+      return conv.id_conversacion
+    } catch (err) {
+      console.warn('Error al crear conversación Isa en BD:', err)
+      return null
+    } finally {
+      creandoConversacionRef.current = false
+    }
+  }
+
+  const handleSelectChatearIsa = async () => {
+    setIsSending(true)
+    setView('isa')
+
+    // Crear conversación en BD
+    const convId = await asegurarConversacionIsa()
+
+    // Enviar licencia/servicio seleccionado a la API y esperar respuesta de Isa
+    if (userData?.licencia) {
+      const sessionId = isaSessionIdRef.current
+
+      // Guardar el servicio enviado como mensaje del usuario en BD
+      if (convId && userData?.empresaId && userData?.contactoId) {
+        try {
+          await guardarMensajeBD({
+            empresa_id: userData.empresaId,
+            conversacion_id: convId,
+            tipo_emisor: 'CONTACTO',
+            contacto_id: userData.contactoId,
+            contenido: userData.licencia,
+          })
+        } catch (err) {
+          console.warn('Error al guardar servicio en BD:', err)
+        }
+      }
+
+      try {
+        // Enviar a la API y esperar respuesta
+        const respuestaIsa = await sendMessageToIsaAgent(sessionId, userData.licencia)
+
+        // Mostrar respuesta de Isa en el chat
+        const isaResponse: Message = {
+          id: (Date.now() + 1).toString(),
+          text: respuestaIsa,
+          sender: 'isa',
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, isaResponse])
+
+        // Guardar respuesta de Isa en BD
+        if (convId && userData?.empresaId) {
+          try {
+            await guardarMensajeBD({
+              empresa_id: userData.empresaId,
+              conversacion_id: convId,
+              tipo_emisor: 'BOT',
+              contenido: respuestaIsa,
+            })
+          } catch (err) {
+            console.warn('Error al guardar respuesta Isa en BD:', err)
+          }
+        }
+      } catch (err) {
+        const errorText = err instanceof Error ? err.message : 'No pude conectar con el agente. Intenta de nuevo.'
+        const errorMsg: Message = {
+          id: (Date.now() + 1).toString(),
+          text: errorText,
+          sender: 'isa',
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, errorMsg])
+      }
+    } else {
+      // Si no hay licencia, guardar el mensaje de bienvenida en BD
+      if (convId && userData?.empresaId) {
+        const bienvenidaTexto = messages.length > 0 ? messages[0].text : ''
+        if (bienvenidaTexto) {
+          try {
+            await guardarMensajeBD({
+              empresa_id: userData.empresaId,
+              conversacion_id: convId,
+              tipo_emisor: 'BOT',
+              contenido: bienvenidaTexto,
+            })
+          } catch (err) {
+            console.warn('Error al guardar bienvenida en BD:', err)
+          }
+        }
+      }
+    }
+
+    setIsSending(false)
   }
 
   const handleSendMessage = async (text: string) => {
@@ -64,6 +163,24 @@ function Chatbot() {
     setMessages(prev => [...prev, userMessage])
     setIsSending(true)
 
+    // Asegurar que hay conversación en BD
+    const convId = await asegurarConversacionIsa()
+
+    // Guardar mensaje del usuario (CONTACTO) en BD
+    if (convId && userData?.empresaId && userData?.contactoId) {
+      try {
+        await guardarMensajeBD({
+          empresa_id: userData.empresaId,
+          conversacion_id: convId,
+          tipo_emisor: 'CONTACTO',
+          contacto_id: userData.contactoId,
+          contenido: text.trim(),
+        })
+      } catch (err) {
+        console.warn('Error al guardar mensaje usuario en BD:', err)
+      }
+    }
+
     try {
       const sessionId = isaSessionIdRef.current
       const responseText = await sendMessageToIsaAgent(sessionId, text.trim())
@@ -74,6 +191,20 @@ function Chatbot() {
         timestamp: new Date()
       }
       setMessages(prev => [...prev, isaResponse])
+
+      // Guardar respuesta de Isa (BOT) en BD
+      if (convId && userData?.empresaId) {
+        try {
+          await guardarMensajeBD({
+            empresa_id: userData.empresaId,
+            conversacion_id: convId,
+            tipo_emisor: 'BOT',
+            contenido: responseText,
+          })
+        } catch (err) {
+          console.warn('Error al guardar respuesta Isa en BD:', err)
+        }
+      }
     } catch (err) {
       const fallbackText = err instanceof Error ? err.message : 'No pude conectar con el agente. Intenta de nuevo.'
       const isaResponse: Message = {
@@ -115,7 +246,7 @@ function Chatbot() {
               <WelcomePanel
                 userData={userData!}
                 onSelectPreguntasFrecuentes={() => setView('faq')}
-                onSelectChatearIsa={() => setView('isa')}
+                onSelectChatearIsa={handleSelectChatearIsa}
                 onSelectChatearAgente={() => setView('agente')}
               />
             </>
@@ -192,4 +323,3 @@ function Chatbot() {
 }
 
 export default Chatbot
-
