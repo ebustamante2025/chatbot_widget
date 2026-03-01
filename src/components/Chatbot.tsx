@@ -11,6 +11,7 @@ import { sendMessageToIsaAgent, crearConversacion, guardarMensajeBD } from '../s
 import './Chatbot.css'
 
 const AGENT_NAME = 'Isa'
+const FAQ_URL = (import.meta.env.VITE_FAQ_URL || 'http://localhost:3008').replace(/\/$/, '')
 
 function generateSessionId(): string {
   return crypto.randomUUID?.()?.replace(/-/g, '') ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`
@@ -245,7 +246,12 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
               </div>
               <WelcomePanel
                 userData={userData!}
-                onSelectPreguntasFrecuentes={() => setView('faq')}
+                onSelectPreguntasFrecuentes={() => {
+                  const params = new URLSearchParams()
+                  if (userData!.licencia) params.set('licencia', userData!.licencia)
+                  const qs = params.toString()
+                  window.open(qs ? `${FAQ_URL}?${qs}` : FAQ_URL, '_blank')
+                }}
                 onSelectChatearIsa={handleSelectChatearIsa}
                 onSelectChatearAgente={() => setView('agente')}
               />

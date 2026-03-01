@@ -1,13 +1,21 @@
 import { useState, useEffect, FormEvent } from 'react'
 import { UserData } from '../types'
-import { verificarEmpresa, crearEmpresa, crearContacto, verificarContacto, checkBackendHealth } from '../services/api'
-import { buscarEmpresaPorNit, tieneAlgunaLicenciaActiva, licenciasActivas } from '../data/empresas-licencias'
-import type { EmpresaLicencia } from '../data/empresas-licencias'
+import {
+  verificarEmpresa,
+  crearEmpresa,
+  crearContacto,
+  verificarContacto,
+  checkBackendHealth,
+  ISA_REGISTRO_WEBHOOK_URL,
+  type ContratoVigente,
+  type ContactoCliente,
+} from '../services/api'
+import { MENSAJES_VALIDACION } from '../data/mensajesValidacion'
 import './RegistrationForm.css'
 
-/** Reemplaza espacios por guion bajo. Ej: "HGI NÓMINA" → "HGI_NÓMINA" */
+/** Reemplaza espacios por guion bajo y envía en mayúsculas. Ej: "HGI Nómina" → "HGI_NÓMINA" */
 function formatearNombreLicencia(nombre: string): string {
-  return nombre.trim().replace(/\s+/g, '_')
+  return nombre.trim().replace(/\s+/g, '_').toUpperCase()
 }
 
 type ConnectionStatus = 'checking' | 'ok' | 'unreachable' | 'database_error'
@@ -27,7 +35,9 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState<string>('')
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>('checking')
-  const [empresaLicencia, setEmpresaLicencia] = useState<EmpresaLicencia | null>(null)
+  const [razonSocial, setRazonSocial] = useState<string>('')
+  const [contratosVigentes, setContratosVigentes] = useState<ContratoVigente[]>([])
+  const [contactosClientes, setContactosClientes] = useState<ContactoCliente[]>([])
 
   // Validar conexión con backend y BD al montar el formulario
   useEffect(() => {
@@ -70,81 +80,88 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
     }
   }
 
-  const handleVerificarNit = () => {
+  const handleVerificarNit = async () => {
     if (!nit.trim()) {
-      setErrors({ nit: 'El NIT es requerido' })
+      setErrors({ nit: MENSAJES_VALIDACION.nitRequerido })
       return
     }
 
     setErrors({})
     setMessage('')
-    setEmpresaLicencia(null)
+    setContratosVigentes([])
+    setContactosClientes([])
+    setLoading(true)
 
-    // Verificar licencia localmente contra datos de empresas
-    const empresaLocal = buscarEmpresaPorNit(nit.trim())
-    if (empresaLocal) {
-      setEmpresaLicencia(empresaLocal)
-      if (!tieneAlgunaLicenciaActiva(empresaLocal)) {
-        setErrors({ nit: 'Sin licencia activa' })
-        setMessage(`❌ Señor usuario, en el momento usted no tiene licencia activa. Por favor verificar con atención al cliente.`)
+    try {
+      const result = await verificarEmpresa(nit.trim())
+      if (!result.licenciaValida || (result.contratosVigentes?.length ?? 0) === 0) {
+        setErrors({ nit: MENSAJES_VALIDACION.sinLicencia })
+        setMessage(`❌ ${MENSAJES_VALIDACION.sinLicenciaMensaje}`)
+        setLoading(false)
         return
       }
-      // Tiene licencia activa → pedir datos del director
-      const lics = licenciasActivas(empresaLocal)
-      setMessage(`✓ ${empresaLocal.razon_social} — ${lics.length} licencia(s) activa(s)`)
+      const nombreEmpresa = result.nombre_empresa ?? result.empresa?.nombre_empresa ?? `Empresa NIT ${nit.trim()}`
+      const textoEmpresa = result.nit ? `NIT ${result.nit} — ${nombreEmpresa}` : nombreEmpresa
+      setRazonSocial(textoEmpresa)
+      setContratosVigentes(result.contratosVigentes ?? [])
+      setContactosClientes(result.contactosClientes ?? [])
+      setMessage(MENSAJES_VALIDACION.nitOk(textoEmpresa, result.contratosVigentes?.length ?? 0))
       setStep('director')
-    } else {
-      setErrors({ nit: 'Empresa no encontrada' })
-      setMessage('❌ El NIT ingresado no se encuentra registrado en el sistema de licencias. Verifique el NIT o contacte al administrador.')
+    } catch (err: any) {
+      setErrors({ nit: MENSAJES_VALIDACION.errorVerificarNit })
+      setMessage(err?.message ? `❌ ${err.message}` : `❌ ${MENSAJES_VALIDACION.errorVerificarNitFallback}`)
+    } finally {
+      setLoading(false)
     }
   }
 
   const handleVerificarDirector = async () => {
     if (!directorCedula.trim()) {
-      setErrors({ directorCedula: 'La cédula es requerida' })
+      setErrors({ directorCedula: MENSAJES_VALIDACION.cedulaRequerida })
       return
     }
-    if (!empresaLicencia) return
+    if (contactosClientes.length === 0) return
 
     setErrors({})
 
-    // Validar contra la lista de directores del JSON
-    const directorValido = empresaLicencia.directores.find(
-      (d) => d.cedula === directorCedula.trim()
+    // Validar contra ContactosClientes de la API (Identificacion)
+    const contactoValido = contactosClientes.find(
+      (c) => String(c.Identificacion).trim() === directorCedula.trim()
     )
 
-    if (!directorValido) {
-      setErrors({ directorCedula: 'Cédula no autorizada' })
-      setMessage('❌ La cédula ingresada no corresponde a un director autorizado de esta empresa.')
+    if (!contactoValido) {
+      setErrors({ directorCedula: MENSAJES_VALIDACION.directorNoAutorizado })
+      setMessage(`❌ ${MENSAJES_VALIDACION.directorNoAutorizadoMensaje}`)
       return
     }
 
-    // Director válido → guardar nombre y pasar a seleccionar licencia
-    setDirectorNombre(directorValido.nombre)
-    setMessage(`✓ Director verificado: ${directorValido.nombre}`)
+    const nombreCompleto = [contactoValido.Nombres, contactoValido.Apellidos].filter(Boolean).join(' ').trim() || contactoValido.Identificacion
+    setDirectorNombre(nombreCompleto)
+    setMessage(MENSAJES_VALIDACION.directorOk(nombreCompleto))
     setLicenciaSeleccionada(null)
     setStep('licencia')
   }
 
   const handleSeleccionarLicencia = async () => {
     if (!licenciaSeleccionada) {
-      setErrors({ licencia: 'Debe seleccionar una licencia' })
+      setErrors({ licencia: MENSAJES_VALIDACION.debeSeleccionarLicencia })
       return
     }
-    if (!empresaLicencia) return
 
     setLoading(true)
     setErrors({})
-    setMessage('Procesando...')
+    setMessage(MENSAJES_VALIDACION.procesando)
+
+    const nombreEmpresa = razonSocial || `Empresa NIT ${nit.trim()}`
 
     // 1. Enviar la licencia seleccionada a la API webhook
     try {
-      await fetch('https://agentehgi.hginet.com.co/webhook/72919732-5851-4c49-966f-36f638298c88', {
+      await fetch(ISA_REGISTRO_WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nit: nit.trim(),
-          razon_social: empresaLicencia.razon_social,
+          razon_social: nombreEmpresa,
           director: directorNombre,
           director_cedula: directorCedula.trim(),
           licencia: formatearNombreLicencia(licenciaSeleccionada),
@@ -156,7 +173,7 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
 
     // 2. Verificar/crear empresa automáticamente en el backend
     let empresaId: number | undefined
-    let empresaNombre = empresaLicencia.razon_social
+    let empresaNombre = nombreEmpresa
 
     try {
       const result = await verificarEmpresa(nit.trim())
@@ -165,16 +182,15 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
         empresaId = result.empresa.id_empresa
         empresaNombre = result.empresa.nombre_empresa
       } else {
-        // Crear empresa automáticamente con la razón social del JSON
         const nuevaEmpresa = await crearEmpresa({
           nit: nit.trim(),
-          nombre_empresa: empresaLicencia.razon_social,
+          nombre_empresa: nombreEmpresa,
         })
         empresaId = nuevaEmpresa.id_empresa
       }
     } catch (error: any) {
       console.warn('Error al verificar/crear empresa:', error)
-      setErrors({ licencia: error.message || 'Error al registrar la empresa' })
+      setErrors({ licencia: error.message || MENSAJES_VALIDACION.errorRegistrarEmpresa })
       setLoading(false)
       return
     }
@@ -200,7 +216,7 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
       }
     } catch (error: any) {
       console.warn('Error al verificar/crear contacto:', error)
-      setErrors({ licencia: error.message || 'Error al registrar el contacto' })
+      setErrors({ licencia: error.message || MENSAJES_VALIDACION.errorRegistrarContacto })
       setLoading(false)
       return
     }
@@ -221,7 +237,7 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
     if (step === 'nit') {
-      handleVerificarNit()
+      await handleVerificarNit()
     } else if (step === 'director') {
       await handleVerificarDirector()
     } else if (step === 'licencia') {
@@ -309,9 +325,9 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
         {/* Paso 2: Verificar director de proyecto */}
         {step === 'director' && (
           <>
-            {empresaLicencia && (
+            {razonSocial && (
               <div className="licencias-info">
-                <p className="licencias-titulo">{empresaLicencia.razon_social}</p>
+                <p className="licencias-titulo">{razonSocial}</p>
               </div>
             )}
             <p className="director-instruccion">Ingrese por favor la cédula del director de proyecto</p>
@@ -337,30 +353,28 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
         )}
 
         {/* Paso 3: Seleccionar licencia activa */}
-        {step === 'licencia' && empresaLicencia && (
+        {step === 'licencia' && contratosVigentes.length > 0 && (
           <>
             <div className="licencias-info">
-              <p className="licencias-titulo">{empresaLicencia.razon_social}</p>
+              <p className="licencias-titulo">{razonSocial}</p>
               <p className="licencias-subtitulo">Seleccione la licencia</p>
               <ul className="licencias-lista">
-                {[...empresaLicencia.licencias]
-                  .filter((l) => l.codigo !== '01' && l.codigo !== '0' && l.activa)
-                  .map((l) => (
-                    <li
-                      key={l.id}
-                      className={`licencia-item licencia-seleccionable ${licenciaSeleccionada === l.nombre ? 'licencia-selected' : ''}`}
-                      onClick={() => {
-                        setLicenciaSeleccionada(l.nombre)
-                        if (errors.licencia) {
-                          setErrors(prev => { const n = { ...prev }; delete n.licencia; return n })
-                        }
-                      }}
-                    >
-                      <span className={`licencia-dot dot-activa`} />
-                      <span className="licencia-nombre">{l.nombre}</span>
-                      {licenciaSeleccionada === l.nombre && <span className="licencia-check">✓</span>}
-                    </li>
-                  ))}
+                {contratosVigentes.map((c, idx) => (
+                  <li
+                    key={`${c.Codigo}-${idx}`}
+                    className={`licencia-item licencia-seleccionable ${licenciaSeleccionada === c.Descripcion ? 'licencia-selected' : ''}`}
+                    onClick={() => {
+                      setLicenciaSeleccionada(c.Descripcion)
+                      if (errors.licencia) {
+                        setErrors(prev => { const n = { ...prev }; delete n.licencia; return n })
+                      }
+                    }}
+                  >
+                    <span className="licencia-dot dot-activa" />
+                    <span className="licencia-nombre">{c.Descripcion}</span>
+                    {licenciaSeleccionada === c.Descripcion && <span className="licencia-check">✓</span>}
+                  </li>
+                ))}
               </ul>
               {errors.licencia && <span className="error-message">{errors.licencia}</span>}
             </div>

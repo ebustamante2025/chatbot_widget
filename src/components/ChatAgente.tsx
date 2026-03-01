@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import {
   crearConversacion,
@@ -6,9 +6,10 @@ import {
   getBackendBaseUrl,
 } from '../services/api'
 import type { UserData } from '../types'
+import MessageInput from './MessageInput'
 import './ChatAgente.css'
 
-const TYPING_DEBOUNCE_MS = 300
+const TYPING_DEBOUNCE_MS = 150
 
 interface ChatAgenteProps {
   userData: UserData
@@ -18,11 +19,10 @@ interface ChatAgenteProps {
 function ChatAgente({ userData, onBack }: ChatAgenteProps) {
   const [conversacionId, setConversacionId] = useState<number | null>(null)
   const [mensajes, setMensajes] = useState<Array<{ id_mensaje?: number | string; tipo_emisor: string; contenido: string; creado_en: string }>>([])
-  const [texto, setTexto] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [creando, setCreando] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [agenteEscribiendo, setAgenteEscribiendo] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const socketRef = useRef<Socket | null>(null)
   // Una sola petición por apertura: reutilizar la misma promesa si el efecto se ejecuta dos veces (p. ej. Strict Mode)
@@ -73,9 +73,10 @@ function ChatAgente({ userData, onBack }: ChatAgenteProps) {
   // WebSocket: tiempo real para mensajes y "está escribiendo"
   useEffect(() => {
     if (!conversacionId) return
-    const socket = io(getBackendBaseUrl(), { path: '/socket.io', transports: ['websocket', 'polling'] })
+        // Polling primero, luego upgrade a WebSocket (igual que el CRM). Evita 400 cuando hay proxy nginx.
+    const socket = io(getBackendBaseUrl(), { path: '/socket.io', transports: ['polling', 'websocket'] })
     socketRef.current = socket
-    const joinRoom = () => socket.emit('join_conversation', conversacionId)
+    const joinRoom = () => socket.emit('join_conversation', Number(conversacionId))
     socket.on('connect', joinRoom)
     if (socket.connected) joinRoom()
     socket.on('new_message', (mensaje: { id_mensaje?: number; tipo_emisor: string; contenido: string; creado_en: string }) => {
@@ -87,14 +88,11 @@ function ChatAgente({ userData, onBack }: ChatAgenteProps) {
         return [...prev, mensaje]
       })
     })
-    socket.on('user_typing', (data: { quien?: string }) => {
-      if (data?.quien === 'agente') setAgenteEscribiendo(true)
-    })
-    socket.on('user_typing_stop', () => setAgenteEscribiendo(false))
+    // El indicador "está escribiendo" se muestra solo en el CRM de soporte (no en el widget)
     return () => {
       socketRef.current = null
-      socket.emit('leave_conversation', conversacionId)
-      socket.emit('typing_stop', { conversacionId })
+      socket.emit('leave_conversation', Number(conversacionId))
+      socket.emit('typing_stop', { conversacionId: Number(conversacionId) })
       socket.disconnect()
     }
   }, [conversacionId])
@@ -109,28 +107,33 @@ function ChatAgente({ userData, onBack }: ChatAgenteProps) {
     return () => cancelAnimationFrame(raf)
   }, [mensajes])
 
-  // Emitir "está escribiendo" + texto al CRM mientras haya texto en el input
+  // Enviar al CRM lo que el contacto está escribiendo (debounce) para que el agente lo vea en tiempo real
+  const handleTyping = useCallback(
+    (texto: string) => {
+      if (!conversacionId) return
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
+      const trim = texto.trim()
+      if (!trim) {
+        socketRef.current?.emit('typing_stop', { conversacionId: Number(conversacionId) })
+        return
+      }
+      typingTimeoutRef.current = setTimeout(() => {
+        socketRef.current?.emit('typing', { conversacionId: Number(conversacionId), quien: 'contacto', texto: trim })
+      }, TYPING_DEBOUNCE_MS)
+    },
+    [conversacionId]
+  )
+
   useEffect(() => {
-    if (!conversacionId) return
-    if (!texto.trim()) {
-      // Input vacío → avisar que dejó de escribir
-      socketRef.current?.emit('typing_stop', { conversacionId })
-      return
+    return () => {
+      if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
     }
-    // Debounce: enviar el texto actual después de un breve delay
-    const t = setTimeout(() => {
-      socketRef.current?.emit('typing', { conversacionId, quien: 'contacto', texto: texto.trim() })
-    }, TYPING_DEBOUNCE_MS)
-    return () => clearTimeout(t)
-  }, [conversacionId, texto])
+  }, [])
 
-  const handleEnviar = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!texto.trim() || !conversacionId || !empresaId || !contactoId || enviando) return
+  const handleEnviar = async (contenido: string) => {
+    if (!contenido.trim() || !conversacionId || !empresaId || !contactoId || enviando) return
 
-    const contenido = texto.trim()
-    setTexto('')
-    socketRef.current?.emit('typing_stop', { conversacionId })
+    socketRef.current?.emit('typing_stop', { conversacionId: Number(conversacionId) })
 
     const tempId = `temp-${Date.now()}`
     const ahora = new Date().toISOString()
@@ -230,24 +233,16 @@ function ChatAgente({ userData, onBack }: ChatAgenteProps) {
                 <span className="chat-agente-msg-hora">{formatearHora(m.creado_en)}</span>
               </div>
             ))}
-            {agenteEscribiendo && (
-              <div className="chat-agente-msg chat-agente-msg--agente chat-agente-typing">
-                <span className="chat-agente-msg-text">Agente está escribiendo...</span>
-              </div>
-            )}
           </>
         )}
       </div>
-      <form className="chat-agente-input" onSubmit={handleEnviar}>
-        <input
-          type="text"
-          placeholder="Escribe tu mensaje..."
-          value={texto}
-          onChange={(e) => setTexto(e.target.value)}
+      <div className="chat-agente-input">
+        <MessageInput
+          onSendMessage={handleEnviar}
           disabled={enviando}
+          onTextChange={handleTyping}
         />
-        <button type="submit" disabled={enviando || !texto.trim()}>Enviar</button>
-      </form>
+      </div>
     </div>
   )
 }

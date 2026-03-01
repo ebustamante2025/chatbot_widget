@@ -1,9 +1,34 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004/api';
 
-// URL base del backend (sin /api) para health y WebSocket
+/** URL base del backend en runtime (query ?apiBaseUrl= o window.IsaWidgetConfig.apiBaseUrl). Si se define, tiene prioridad sobre la de build. */
+let runtimeApiBaseUrl: string | null = null;
+
+export function setRuntimeApiBaseUrl(url: string | null): void {
+  runtimeApiBaseUrl = url;
+}
+
+function getRuntimeApiBaseUrl(): string | null {
+  if (runtimeApiBaseUrl !== null) return runtimeApiBaseUrl;
+  if (typeof window === 'undefined') return null;
+  const params = new URLSearchParams(window.location.search);
+  const fromQuery = params.get('apiBaseUrl');
+  if (fromQuery !== null) return fromQuery === '' ? '' : fromQuery;
+  const fromConfig = (window as unknown as { IsaWidgetConfig?: { apiBaseUrl?: string } }).IsaWidgetConfig?.apiBaseUrl;
+  if (fromConfig !== undefined) return fromConfig;
+  return null;
+}
+
+// URL base del backend (sin /api) para health y WebSocket.
+// Prioridad: 1) runtime (?apiBaseUrl= o IsaWidgetConfig.apiBaseUrl), 2) build (VITE_API_URL).
+// Si es relativa o vacía, se usa mismo origen para que Socket.IO use /socket.io/.
 export const getBackendBaseUrl = (): string => {
+  const runtime = getRuntimeApiBaseUrl();
+  if (runtime !== null) {
+    const base = runtime.replace(/\/api\/?$/, '');
+    return base;
+  }
   const url = API_BASE_URL.replace(/\/api\/?$/, '');
-  return url || API_BASE_URL;
+  return url || '';
 };
 
 export interface HealthResponse {
@@ -31,10 +56,30 @@ export interface Contacto {
   creado_en: string;
 }
 
+export interface ContratoVigente {
+  Codigo: string;
+  Descripcion: string;
+  FechaInicial?: string;
+  FechaFinal?: string;
+}
+
+export interface ContactoCliente {
+  Identificacion: string;
+  Nombres: string;
+  Apellidos: string;
+  Email?: string;
+  Celular?: string;
+  Telefono?: string;
+}
+
 export interface VerificarEmpresaResponse {
   existe: boolean;
   licenciaValida?: boolean;
+  nit?: string;
+  nombre_empresa?: string;
   empresa?: Empresa;
+  contratosVigentes?: ContratoVigente[];
+  contactosClientes?: ContactoCliente[];
 }
 
 export interface CrearEmpresaRequest {
@@ -227,14 +272,38 @@ export async function crearContacto(data: CrearContactoRequest): Promise<Contact
   return result.contacto;
 }
 
-// --- Agente Isa (webhook) ---
-const ISA_AGENT_WEBHOOK_URL =
+// --- Agente Isa (webhooks) ---
+// Al seleccionar el servicio en el registro → esta URL
+export const ISA_REGISTRO_WEBHOOK_URL =
+  import.meta.env.VITE_ISA_REGISTRO_WEBHOOK_URL ||
+  'https://agentehgi.hginet.com.co/webhook/1986379d-e2f5-4eb3-b925-146875342724';
+// Al escribir y enviar mensajes en el chat → esta URL
+export const ISA_AGENT_WEBHOOK_URL =
   import.meta.env.VITE_ISA_AGENT_WEBHOOK_URL ||
   'https://agentehgi.hginet.com.co/webhook/72919732-5851-4c49-966f-36f638298c88';
 
 /**
+ * Decodifica el body de la respuesta como UTF-8 (o ISO-8859-1 si hay caracteres corruptos)
+ * para evitar ?? en tildes y ñ cuando la API no envía charset correcto.
+ */
+async function parseJsonWithUtf8(response: Response): Promise<unknown> {
+  const buffer = await response.arrayBuffer();
+  const utf8 = new TextDecoder('utf-8').decode(buffer);
+  if (utf8.includes('\uFFFD')) {
+    const latin1 = new TextDecoder('iso-8859-1').decode(buffer);
+    try {
+      return JSON.parse(latin1);
+    } catch {
+      return JSON.parse(utf8);
+    }
+  }
+  return JSON.parse(utf8);
+}
+
+/**
  * Envía un mensaje al agente Isa y devuelve la respuesta.
- * Body: { sessionId, action: "sendMessage", chatInput } 
+ * Body: { sessionId, action: "sendMessage", chatInput }
+ * Decodifica la respuesta como UTF-8 para mostrar bien tildes y ñ.
  */
 export async function sendMessageToIsaAgent(
   sessionId: string,
@@ -243,8 +312,8 @@ export async function sendMessageToIsaAgent(
   const response = await fetch(ISA_AGENT_WEBHOOK_URL, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
+      'Content-Type': 'application/json; charset=utf-8',
+      Accept: 'application/json; charset=utf-8',
     },
     body: JSON.stringify({
       sessionId,
@@ -254,26 +323,31 @@ export async function sendMessageToIsaAgent(
   });
 
   if (!response.ok) {
-    const text = await response.text();
+    const buffer = await response.arrayBuffer();
+    const utf8 = new TextDecoder('utf-8').decode(buffer);
     let message = `Error ${response.status}`;
     try {
-      const json = JSON.parse(text);
+      const json = JSON.parse(utf8);
       message = json.message || json.error || message;
     } catch {
-      if (text) message = text.slice(0, 100);
+      if (utf8) message = utf8.slice(0, 100);
     }
     throw new Error(message);
   }
 
-  const data = await response.json();
-  // La API devuelve { sessionId, answer } — usamos answer como texto de Isa
+  const data = await parseJsonWithUtf8(response);
+  const item = Array.isArray(data) ? data[0] : data;
   const text =
-    data.answer ??
-    data.message ??
-    data.response ??
-    data.output ??
-    data.text ??
+    (item && typeof item === 'object' && (item as any)?.answer) ??
+    (item && typeof item === 'object' && (item as any)?.message) ??
+    (item && typeof item === 'object' && (item as any)?.response) ??
+    (item && typeof item === 'object' && (item as any)?.output) ??
+    (item && typeof item === 'object' && (item as any)?.text) ??
+    (item && typeof item === 'object' && (item as any)?.reply) ??
     (typeof data === 'string' ? data : null);
   if (text != null && typeof text === 'string') return text;
+  if (import.meta.env?.DEV) {
+    console.warn('[Isa API] Respuesta sin texto reconocido:', data);
+  }
   return 'No pude procesar la respuesta. Intenta de nuevo.';
 }

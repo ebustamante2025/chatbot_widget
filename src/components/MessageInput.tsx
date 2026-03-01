@@ -4,13 +4,20 @@ import './MessageInput.css'
 interface MessageInputProps {
   onSendMessage: (text: string) => void
   disabled?: boolean
+  /** Llamado al cambiar el texto (para que el CRM pueda ver lo que se está escribiendo en tiempo real) */
+  onTextChange?: (text: string) => void
 }
 
-function MessageInput({ onSendMessage, disabled = false }: MessageInputProps) {
+function MessageInput({ onSendMessage, disabled = false, onTextChange }: MessageInputProps) {
   const [inputValue, setInputValue] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
 
-  // Mantener el foco en el input para escribir (al montar y cuando vuelve a estar habilitado)
+  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const v = e.target.value
+    setInputValue(v)
+    onTextChange?.(v)
+  }
+
   useEffect(() => {
     if (!disabled) {
       inputRef.current?.focus()
@@ -19,12 +26,13 @@ function MessageInput({ onSendMessage, disabled = false }: MessageInputProps) {
 
   const handleSend = () => {
     if (inputValue.trim() && !disabled) {
-      onSendMessage(inputValue)
+      onSendMessage(inputValue.trim())
       setInputValue('')
     }
   }
 
-  const handleKeyPress = (e: KeyboardEvent<HTMLInputElement>) => {
+  // Enter = enviar, Shift+Enter = nueva línea
+  const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       handleSend()
@@ -33,16 +41,16 @@ function MessageInput({ onSendMessage, disabled = false }: MessageInputProps) {
 
   return (
     <div className="message-input-container">
-      <input
+      <textarea
         ref={inputRef}
-        type="text"
-        className="message-input"
-        placeholder={disabled ? 'Esperando respuesta...' : 'Escribe tu mensaje...'}
+        className="message-input message-input-textarea"
+        placeholder={disabled ? 'Esperando respuesta...' : 'Escribe tu mensaje... (Enter para enviar, Shift+Enter para nueva línea)'}
         value={inputValue}
-        onChange={(e) => setInputValue(e.target.value)}
-        onKeyPress={handleKeyPress}
+        onChange={handleChange}
+        onKeyDown={handleKeyDown}
         disabled={disabled}
         autoFocus
+        rows={2}
       />
       <button
         className="send-button"

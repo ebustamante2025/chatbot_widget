@@ -10,13 +10,19 @@ WORKDIR /app
 COPY package*.json ./
 
 # Instalar dependencias
-RUN npm ci --only=production=false
+RUN npm ci
 
 # Copiar código fuente
 COPY . .
 
 # En producción usa /api (proxy nginx), no localhost
 ENV VITE_API_URL=/api
+
+# Webhooks Isa (opcional; si no se pasan, se usan las del código)
+ARG VITE_ISA_REGISTRO_WEBHOOK_URL
+ENV VITE_ISA_REGISTRO_WEBHOOK_URL=${VITE_ISA_REGISTRO_WEBHOOK_URL}
+ARG VITE_ISA_AGENT_WEBHOOK_URL
+ENV VITE_ISA_AGENT_WEBHOOK_URL=${VITE_ISA_AGENT_WEBHOOK_URL}
 
 # Construir la aplicación
 RUN npm run build

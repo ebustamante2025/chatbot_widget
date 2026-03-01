@@ -1,25 +1,22 @@
-version: '3.8'
+# Widget Chatbot - Requiere que api-backend esté corriendo
+# Se conecta a la red crm-chatbot-network (creada por chatbot_api_backend)
 
 services:
   widget-chatbot:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        - VITE_ISA_REGISTRO_WEBHOOK_URL=${VITE_ISA_REGISTRO_WEBHOOK_URL}
+        - VITE_ISA_AGENT_WEBHOOK_URL=${VITE_ISA_AGENT_WEBHOOK_URL}
+    image: widget-chatbot:latest
     container_name: widget-chatbot-isa
     ports:
       - "8080:80"
-    restart: unless-stopped
-    environment:
-      - NODE_ENV=production
     networks:
-      - widget-network
-    healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
+      - crm-chatbot-network
+    restart: unless-stopped
 
 networks:
-  widget-network:
-    driver: bridge
+  crm-chatbot-network:
+    external: true

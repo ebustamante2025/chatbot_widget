@@ -1,6 +1,6 @@
 .message-input-container {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
   padding: 12px;
   background: white;
@@ -16,6 +16,13 @@
   outline: none;
   transition: border-color 0.2s ease;
   font-family: inherit;
+}
+
+.message-input-textarea {
+  min-height: 44px;
+  max-height: 120px;
+  resize: none;
+  line-height: 1.4;
 }
 
 .message-input:focus {

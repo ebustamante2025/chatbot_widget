@@ -15,8 +15,10 @@
     window.IsaWidgetLoaded = true;
     
     // Configuración por defecto
+    // apiBaseUrl: URL del backend (API + WebSocket). Si no se define, el widget usa el mismo origen que widgetUrl.
     var defaultConfig = {
         widgetUrl: window.IsaWidgetConfig?.widgetUrl || 'https://tudominio.com/widget-chatbot/index.html',
+        apiBaseUrl: window.IsaWidgetConfig?.apiBaseUrl ?? '',
         position: window.IsaWidgetConfig?.position || 'bottom-right', // 'bottom-right' | 'bottom-left'
         zIndex: window.IsaWidgetConfig?.zIndex || 9999,
         width: window.IsaWidgetConfig?.width || 400,
@@ -36,7 +38,13 @@
         
         var iframe = document.createElement('iframe');
         iframe.id = 'isa-chatbot-widget';
-        iframe.src = config.widgetUrl;
+        var widgetSrc = config.widgetUrl;
+        if (config.apiBaseUrl !== undefined && config.apiBaseUrl !== '') {
+            var sep = widgetSrc.indexOf('?') >= 0 ? '&' : '?';
+            iframe.src = widgetSrc + sep + 'apiBaseUrl=' + encodeURIComponent(config.apiBaseUrl);
+        } else {
+            iframe.src = widgetSrc;
+        }
         iframe.title = 'Chatbot Isa';
         iframe.setAttribute('allow', 'microphone');
         iframe.setAttribute('frameborder', '0');
