@@ -33,6 +33,17 @@
   font-weight: 600;
 }
 
+.welcome-panel-error {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  margin-bottom: 10px;
+  border: 1px solid #f5c6cb;
+  font-weight: 500;
+}
+
 .welcome-panel-options {
   display: flex;
   flex-direction: column;

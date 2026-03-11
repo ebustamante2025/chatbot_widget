@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import ChatIcon from './ChatIcon'
 import MessageList from './MessageList'
 import MessageInput from './MessageInput'
@@ -7,11 +7,36 @@ import WelcomePanel from './WelcomePanel'
 import PreguntasFrecuentes from './PreguntasFrecuentes'
 import ChatAgente from './ChatAgente'
 import { Message, UserData } from '../types'
-import { sendMessageToIsaAgent, crearConversacion, guardarMensajeBD } from '../services/api'
+import { sendMessageToIsaAgent, crearConversacion, guardarMensajeBD, obtenerTokenAccesoFAQ, verificarServicioFAQ } from '../services/api'
 import './Chatbot.css'
 
+const STORAGE_KEY_USER = 'isa_widget_user'
 const AGENT_NAME = 'Isa'
-const FAQ_URL = (import.meta.env.VITE_FAQ_URL || 'http://localhost:3008').replace(/\/$/, '')
+
+function loadStoredUser(): UserData | null {
+  try {
+    const raw = typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(STORAGE_KEY_USER) : null
+    if (!raw) return null
+    const data = JSON.parse(raw) as UserData
+    return data.empresaId != null && data.contactoId != null ? data : null
+  } catch {
+    return null
+  }
+}
+
+function saveStoredUser(data: UserData | null) {
+  try {
+    if (typeof sessionStorage === 'undefined') return
+    if (data) sessionStorage.setItem(STORAGE_KEY_USER, JSON.stringify(data))
+    else sessionStorage.removeItem(STORAGE_KEY_USER)
+  } catch {}
+}
+// Preguntas frecuentes: desarrollo → localhost:3009, Docker/producción → 3008 (o VITE_FAQ_URL si está definida)
+const FAQ_URL = (() => {
+  const envUrl = (import.meta.env.VITE_FAQ_URL || '').replace(/\/$/, '')
+  if (envUrl) return envUrl
+  return import.meta.env.DEV ? 'http://localhost:3009' : 'http://localhost:3008'
+})()
 
 function generateSessionId(): string {
   return crypto.randomUUID?.()?.replace(/-/g, '') ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`
@@ -26,14 +51,26 @@ function Chatbot() {
   const [messages, setMessages] = useState<Message[]>([])
   const [view, setView] = useState<ViewAfterRegistration>('panel')
   const [isSending, setIsSending] = useState(false)
+  /** Mensaje de validación en el menú (ej. servicio sin preguntas frecuentes), como la cédula/permisos */
+  const [panelFaqError, setPanelFaqError] = useState<string | null>(null)
   const isaSessionIdRef = useRef<string>(generateSessionId())
   // Conversación en BD para el chat con Isa
   const isaConversacionIdRef = useRef<number | null>(null)
   const creandoConversacionRef = useRef<boolean>(false)
 
+  // Restaurar usuario desde sessionStorage al montar (para mantener historial al refrescar o reabrir)
+  useEffect(() => {
+    const stored = loadStoredUser()
+    if (stored) {
+      setUserData(stored)
+      setIsRegistered(true)
+    }
+  }, [])
+
   const handleRegistration = (data: UserData) => {
     setUserData(data)
     setIsRegistered(true)
+    saveStoredUser(data)
     setView('panel')
     // Mensaje de bienvenida para cuando entre a chatear con Isa
     const welcomeMessage: Message = {
@@ -69,6 +106,7 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
   }
 
   const handleSelectChatearIsa = async () => {
+    setPanelFaqError(null)
     setIsSending(true)
     setView('isa')
 
@@ -246,14 +284,52 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
               </div>
               <WelcomePanel
                 userData={userData!}
-                onSelectPreguntasFrecuentes={() => {
+                faqError={panelFaqError}
+                onSelectPreguntasFrecuentes={async () => {
+                  const licencia = userData!.licencia?.trim()
+                  if (licencia) {
+                    try {
+                      const { existe } = await verificarServicioFAQ(licencia)
+                      if (!existe) {
+                        setPanelFaqError('❌ El servicio seleccionado no está disponible en preguntas frecuentes.')
+                        return
+                      }
+                    } catch (e) {
+                      if (import.meta.env?.DEV) console.warn('[Chatbot] Error al verificar servicio FAQ:', e)
+                    }
+                  }
+                  setPanelFaqError(null)
+                  const baseUrl = (typeof window !== 'undefined' && window.location.port === '3002')
+                    ? 'http://localhost:3009'
+                    : FAQ_URL
                   const params = new URLSearchParams()
-                  if (userData!.licencia) params.set('licencia', userData!.licencia)
+                  if (userData!.empresaId != null && userData!.contactoId != null) {
+                    try {
+                      const token = await obtenerTokenAccesoFAQ(userData!.empresaId, userData!.contactoId)
+                      if (token) {
+                        params.set('token', token)
+                      } else if (import.meta.env?.DEV) {
+                        console.warn('[Chatbot] FAQ: no se obtuvo token. Verifique que el backend (api/faq-acceso) esté en ejecución y que empresaId/contactoId sean válidos.')
+                      }
+                    } catch (e) {
+                      if (import.meta.env?.DEV) console.warn('[Chatbot] FAQ token error:', e)
+                    }
+                  }
+                  if (userData!.licencia) {
+                    try {
+                      window.localStorage.setItem('faq_servicio_chatbot', userData!.licencia)
+                    } catch (_) {}
+                    params.set('servicio', userData!.licencia)
+                  }
                   const qs = params.toString()
-                  window.open(qs ? `${FAQ_URL}?${qs}` : FAQ_URL, '_blank')
+                  const url = qs ? `${baseUrl}?${qs}` : baseUrl
+                  window.open(url, '_blank')
                 }}
                 onSelectChatearIsa={handleSelectChatearIsa}
-                onSelectChatearAgente={() => setView('agente')}
+                onSelectChatearAgente={() => {
+                  setPanelFaqError(null)
+                  setView('agente')
+                }}
               />
             </>
           ) : view === 'faq' ? (
@@ -286,7 +362,15 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
                   ×
                 </button>
               </div>
-              <ChatAgente userData={userData!} onBack={() => setView('panel')} />
+              <ChatAgente
+                userData={userData!}
+                onBack={() => setView('panel')}
+                onBackFromClosed={() => {
+                  setUserData(null)
+                  saveStoredUser(null)
+                  setIsRegistered(false)
+                }}
+              />
             </>
           ) : (
             <>

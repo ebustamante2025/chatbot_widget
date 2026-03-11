@@ -4,6 +4,7 @@ import './WelcomePanel.css'
 
 interface WelcomePanelProps {
   userData: UserData
+  faqError?: string | null
   onSelectPreguntasFrecuentes: () => void
   onSelectChatearIsa: () => void
   onSelectChatearAgente: () => void
@@ -11,6 +12,7 @@ interface WelcomePanelProps {
 
 function WelcomePanel({
   userData,
+  faqError,
   onSelectPreguntasFrecuentes,
   onSelectChatearIsa,
   onSelectChatearAgente,
@@ -22,6 +24,11 @@ function WelcomePanel({
         <p className="welcome-panel-subtitle">{userData.empresa}</p>
       </div>
       <p className="welcome-panel-choose">¿Cómo podemos ayudarte?</p>
+      {faqError && (
+        <div className="welcome-panel-error">
+          {faqError}
+        </div>
+      )}
       <div className="welcome-panel-options">
         <button
           type="button"

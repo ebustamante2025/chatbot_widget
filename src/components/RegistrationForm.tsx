@@ -6,7 +6,7 @@ import {
   crearContacto,
   verificarContacto,
   checkBackendHealth,
-  ISA_REGISTRO_WEBHOOK_URL,
+  getWebhookProxyRegistroUrl,
   type ContratoVigente,
   type ContactoCliente,
 } from '../services/api'
@@ -154,9 +154,9 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
 
     const nombreEmpresa = razonSocial || `Empresa NIT ${nit.trim()}`
 
-    // 1. Enviar la licencia seleccionada a la API webhook
+    // 1. Enviar la licencia seleccionada a la API webhook (vía proxy del backend para evitar CORS)
     try {
-      await fetch(ISA_REGISTRO_WEBHOOK_URL, {
+      await fetch(getWebhookProxyRegistroUrl(), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -365,6 +365,12 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
                     className={`licencia-item licencia-seleccionable ${licenciaSeleccionada === c.Descripcion ? 'licencia-selected' : ''}`}
                     onClick={() => {
                       setLicenciaSeleccionada(c.Descripcion)
+                      console.log('[Chatbot] Botón de servicio presionado:', {
+                        codigo: c.Codigo,
+                        descripcion: c.Descripcion,
+                        fechaInicial: c.FechaInicial,
+                        fechaFinal: c.FechaFinal
+                      })
                       if (errors.licencia) {
                         setErrors(prev => { const n = { ...prev }; delete n.licencia; return n })
                       }

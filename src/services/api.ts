@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 /** URL base del backend en runtime (query ?apiBaseUrl= o window.IsaWidgetConfig.apiBaseUrl). Si se define, tiene prioridad sobre la de build. */
 let runtimeApiBaseUrl: string | null = null;
@@ -236,7 +236,52 @@ export async function enviarMensajeAgente(data: {
   return response.json();
 }
 
-// Guardar mensaje en BD (genérico: CONTACTO, BOT, SISTEMA)
+/** Editar mensaje del contacto (solo dentro de 3 min). Sin auth; se valida con empresa_id, conversacion_id, contacto_id. */
+export async function editarMensajeContacto(params: {
+  id_mensaje: number;
+  empresa_id: number;
+  conversacion_id: number;
+  contacto_id: number;
+  contenido: string;
+}): Promise<{ mensaje: unknown }> {
+  const response = await fetch(`${API_BASE_URL}/mensajes/contacto/${params.id_mensaje}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      empresa_id: params.empresa_id,
+      conversacion_id: params.conversacion_id,
+      contacto_id: params.contacto_id,
+      contenido: params.contenido,
+    }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message || 'Error al editar mensaje');
+  }
+  return response.json();
+}
+
+/** Eliminar mensaje del contacto (solo dentro de 3 min). Sin auth; se valida con empresa_id, conversacion_id, contacto_id. */
+export async function eliminarMensajeContacto(params: {
+  id_mensaje: number;
+  empresa_id: number;
+  conversacion_id: number;
+  contacto_id: number;
+}): Promise<void> {
+  const response = await fetch(`${API_BASE_URL}/mensajes/contacto/${params.id_mensaje}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      empresa_id: params.empresa_id,
+      conversacion_id: params.conversacion_id,
+      contacto_id: params.contacto_id,
+    }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message || 'Error al eliminar mensaje');
+  }
+}
 export async function guardarMensajeBD(data: {
   empresa_id: number;
   conversacion_id: number;
@@ -272,12 +317,50 @@ export async function crearContacto(data: CrearContactoRequest): Promise<Contact
   return result.contacto;
 }
 
+/** Obtiene un token de acceso a la página de preguntas frecuentes (tras validar NIT + usuario en el chatbot). */
+export async function obtenerTokenAccesoFAQ(empresaId: number, contactoId: number): Promise<string | null> {
+  const base = API_BASE_URL.replace(/\/api\/?$/, "") || "http://localhost:3001";
+  const url = `${base}/api/faq-acceso`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ empresaId, contactoId }),
+  });
+  const data = (await res.json()) as { success?: boolean; token?: string; error?: string; message?: string };
+  if (data?.success && typeof data?.token === "string") return data.token;
+  if (import.meta.env?.DEV && !res.ok) {
+    console.warn("[FAQ token]", res.status, data?.message || data?.error || "Error al obtener token");
+  }
+  return null;
+}
+
+/** Verifica si el servicio existe en preguntas frecuentes y si tiene preguntas. Si no, no se debe redirigir y se muestra mensaje en el chat. */
+export async function verificarServicioFAQ(servicio: string): Promise<{ existe: boolean; tienePreguntas: boolean }> {
+  const base = API_BASE_URL.replace(/\/api\/?$/, "") || "http://localhost:3001";
+  const url = `${base}/api/faq-acceso/verificar-servicio?servicio=${encodeURIComponent(servicio)}`;
+  try {
+    const res = await fetch(url, { method: "GET", headers: { Accept: "application/json" } });
+    const data = (await res.json()) as { existe?: boolean; tienePreguntas?: boolean };
+    return {
+      existe: data?.existe === true,
+      tienePreguntas: data?.tienePreguntas === true,
+    };
+  } catch {
+    return { existe: false, tienePreguntas: false };
+  }
+}
+
 // --- Agente Isa (webhooks) ---
-// Al seleccionar el servicio en el registro → esta URL
+// Usar proxy del backend para evitar CORS (el backend reenvía al webhook externo).
+export const getWebhookProxyRegistroUrl = (): string =>
+  `${getBackendBaseUrl()}/api/webhook-proxy/registro`;
+export const getWebhookProxyAgentUrl = (): string =>
+  `${getBackendBaseUrl()}/api/webhook-proxy/agent`;
+
+// URLs directas (solo si se usan desde un contexto sin CORS, p. ej. servidor)
 export const ISA_REGISTRO_WEBHOOK_URL =
   import.meta.env.VITE_ISA_REGISTRO_WEBHOOK_URL ||
   'https://agentehgi.hginet.com.co/webhook/1986379d-e2f5-4eb3-b925-146875342724';
-// Al escribir y enviar mensajes en el chat → esta URL
 export const ISA_AGENT_WEBHOOK_URL =
   import.meta.env.VITE_ISA_AGENT_WEBHOOK_URL ||
   'https://agentehgi.hginet.com.co/webhook/72919732-5851-4c49-966f-36f638298c88';
@@ -309,7 +392,7 @@ export async function sendMessageToIsaAgent(
   sessionId: string,
   chatInput: string
 ): Promise<string> {
-  const response = await fetch(ISA_AGENT_WEBHOOK_URL, {
+  const response = await fetch(getWebhookProxyAgentUrl(), {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json; charset=utf-8',

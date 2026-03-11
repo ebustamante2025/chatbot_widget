@@ -6,16 +6,32 @@ interface MessageInputProps {
   disabled?: boolean
   /** Llamado al cambiar el texto (para que el CRM pueda ver lo que se está escribiendo en tiempo real) */
   onTextChange?: (text: string) => void
+  /** Modo edición: muestra el texto a editar y botón "Guardar" / "Cancelar" */
+  editMode?: boolean
+  /** Valor controlado en modo edición */
+  value?: string
+  /** Cambios en modo edición */
+  onChange?: (value: string) => void
+  /** Al cancelar la edición */
+  onCancelEdit?: () => void
+  /** Al pulsar el botón verde en modo edición: guardar/actualizar el mensaje con el texto actual */
+  onSaveEdit?: (text: string) => void
 }
 
-function MessageInput({ onSendMessage, disabled = false, onTextChange }: MessageInputProps) {
+function MessageInput({ onSendMessage, disabled = false, onTextChange, editMode = false, value, onChange, onCancelEdit, onSaveEdit }: MessageInputProps) {
   const [inputValue, setInputValue] = useState('')
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
+  const isControlled = editMode && value !== undefined && onChange !== undefined
+  const displayValue = isControlled ? value : inputValue
+
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const v = e.target.value
-    setInputValue(v)
-    onTextChange?.(v)
+    if (isControlled) onChange(v)
+    else {
+      setInputValue(v)
+      onTextChange?.(v)
+    }
   }
 
   useEffect(() => {
@@ -24,11 +40,21 @@ function MessageInput({ onSendMessage, disabled = false, onTextChange }: Message
     }
   }, [disabled])
 
-  const handleSend = () => {
-    if (inputValue.trim() && !disabled) {
-      onSendMessage(inputValue.trim())
-      setInputValue('')
+  useEffect(() => {
+    if (editMode && value !== undefined) {
+      inputRef.current?.focus()
     }
+  }, [editMode, value])
+
+  const handleSend = () => {
+    const text = (isControlled ? value : inputValue).trim()
+    if (!text || disabled) return
+    if (editMode && onSaveEdit) {
+      onSaveEdit(text)
+      return
+    }
+    onSendMessage(text)
+    if (!isControlled) setInputValue('')
   }
 
   // Enter = enviar, Shift+Enter = nueva línea
@@ -40,12 +66,20 @@ function MessageInput({ onSendMessage, disabled = false, onTextChange }: Message
   }
 
   return (
-    <div className="message-input-container">
+    <div className={`message-input-container ${editMode ? 'message-input-container--edit' : ''}`}>
+      {editMode && onCancelEdit && (
+        <button type="button" className="message-input-btn-icon message-input-cancel" onClick={onCancelEdit} aria-label="Cancelar edición" title="Cancelar">
+          <svg className="message-input-icon-cancel" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ width: 20, height: 20, display: 'block', flexShrink: 0 }}>
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      )}
       <textarea
         ref={inputRef}
         className="message-input message-input-textarea"
-        placeholder={disabled ? 'Esperando respuesta...' : 'Escribe tu mensaje... (Enter para enviar, Shift+Enter para nueva línea)'}
-        value={inputValue}
+        placeholder={disabled ? 'Esperando respuesta...' : editMode ? 'Edita tu mensaje...' : 'Escribe tu mensaje... (Enter para enviar, Shift+Enter para nueva línea)'}
+        value={displayValue}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
         disabled={disabled}
@@ -55,22 +89,29 @@ function MessageInput({ onSendMessage, disabled = false, onTextChange }: Message
       <button
         className="send-button"
         onClick={handleSend}
-        disabled={!inputValue.trim() || disabled}
-        aria-label="Enviar mensaje"
+        disabled={(isControlled ? !(value?.trim()) : !inputValue.trim()) || disabled}
+        aria-label={editMode ? 'Guardar cambios' : 'Enviar mensaje'}
+        title={editMode ? 'Guardar' : undefined}
       >
-        <svg
-          width="20"
-          height="20"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <line x1="22" y1="2" x2="11" y2="13"></line>
-          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-        </svg>
+        {editMode ? (
+          <svg className="message-input-icon-guardar" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        ) : (
+          <svg
+            className="message-input-icon-send"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.25"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden
+          >
+            <path d="M22 2L11 13" />
+            <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+          </svg>
+        )}
       </button>
     </div>
   )

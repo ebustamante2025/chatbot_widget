@@ -78,6 +78,100 @@
   align-self: flex-end;
 }
 
+.chat-agente-msg-meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  align-self: flex-end;
+}
+
+.chat-agente-msg-flecha {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.chat-agente-msg--acciones {
+  cursor: pointer;
+}
+
+.chat-agente-msg--acciones:hover {
+  filter: brightness(0.95);
+}
+
+/* Menú contextual (estilo imagen: oscuro, junto al mensaje) */
+.chat-agente-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  background: transparent;
+  z-index: 100;
+}
+
+.chat-agente-menu {
+  position: fixed;
+  z-index: 101;
+  min-width: 160px;
+  background: #1f2937;
+  border-radius: 10px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.35);
+  padding: 6px 0;
+  list-style: none;
+  margin: 0;
+}
+
+.chat-agente-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  color: #f3f4f6;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.chat-agente-menu-item:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chat-agente-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-agente-menu-icon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+.chat-agente-menu-item--editar {
+  color: #f3f4f6;
+}
+
+.chat-agente-menu-item--eliminar {
+  color: #fca5a5;
+}
+
+.chat-agente-menu-item--eliminar:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fecaca;
+}
+
+.chat-agente-menu-hint {
+  margin: 6px 14px 0;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  font-size: 11px;
+  color: #9ca3af;
+  line-height: 1.3;
+}
+
 .chat-agente-input {
   border-top: 1px solid #e5e7eb;
   background: white;
@@ -193,6 +287,13 @@
   font-size: 13px;
   color: #555;
   line-height: 1.5;
+}
+
+.chat-agente-text--despedida {
+  font-size: 14px;
+  color: #1f2937;
+  font-weight: 500;
+  margin: 0 0 16px 0;
 }
 
 .chat-agente-hint {
