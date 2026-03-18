@@ -365,12 +365,6 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
                     className={`licencia-item licencia-seleccionable ${licenciaSeleccionada === c.Descripcion ? 'licencia-selected' : ''}`}
                     onClick={() => {
                       setLicenciaSeleccionada(c.Descripcion)
-                      console.log('[Chatbot] Botón de servicio presionado:', {
-                        codigo: c.Codigo,
-                        descripcion: c.Descripcion,
-                        fechaInicial: c.FechaInicial,
-                        fechaFinal: c.FechaFinal
-                      })
                       if (errors.licencia) {
                         setErrors(prev => { const n = { ...prev }; delete n.licencia; return n })
                       }

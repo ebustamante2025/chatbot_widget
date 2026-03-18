@@ -58,9 +58,7 @@
         addResponsiveStyles();
         
         // Evento de carga
-        iframe.addEventListener('load', function() {
-            console.log('Widget Chatbot Isa cargado correctamente');
-        });
+        iframe.addEventListener('load', function() {});
     }
     
     /**

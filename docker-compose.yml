@@ -7,12 +7,13 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
+        - VITE_FAQ_URL=${VITE_FAQ_URL:-https://preguntasfrecuntes.hginet.com.co}
         - VITE_ISA_REGISTRO_WEBHOOK_URL=${VITE_ISA_REGISTRO_WEBHOOK_URL}
         - VITE_ISA_AGENT_WEBHOOK_URL=${VITE_ISA_AGENT_WEBHOOK_URL}
     image: widget-chatbot:latest
     container_name: widget-chatbot-isa
     ports:
-      - "8080:80"
+      - "8180:80"
     networks:
       - crm-chatbot-network
     restart: unless-stopped
