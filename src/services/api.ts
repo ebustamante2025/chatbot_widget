@@ -253,6 +253,63 @@ export async function guardarMensajeBD(data: {
   return response.json();
 }
 
+/** URL del proxy de registro (webhook Isa) en el backend. Evita CORS al llamar al webhook externo. */
+export function getWebhookProxyRegistroUrl(): string {
+  const base = getBackendBaseUrl();
+  return (base ? base.replace(/\/$/, '') : '') + '/api/webhook-proxy/registro';
+}
+
+/** Editar un mensaje enviado por el contacto (widget, con empresa_id/conversacion_id/contacto_id). */
+export async function editarMensajeContacto(params: {
+  id_mensaje: number;
+  empresa_id: number;
+  conversacion_id: number;
+  contacto_id: number;
+  contenido: string;
+}): Promise<{ mensaje: unknown }> {
+  const { id_mensaje, empresa_id, conversacion_id, contacto_id, contenido } = params;
+  const response = await fetch(`${API_BASE_URL}/mensajes/contacto/${id_mensaje}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ empresa_id, conversacion_id, contacto_id, contenido }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message || 'Error al editar mensaje');
+  }
+  return response.json();
+}
+
+/** Eliminar un mensaje enviado por el contacto (widget). */
+export async function eliminarMensajeContacto(params: {
+  id_mensaje: number;
+  empresa_id: number;
+  conversacion_id: number;
+  contacto_id: number;
+}): Promise<void> {
+  const { id_mensaje, empresa_id, conversacion_id, contacto_id } = params;
+  const response = await fetch(`${API_BASE_URL}/mensajes/contacto/${id_mensaje}`, {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ empresa_id, conversacion_id, contacto_id }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { message?: string }).message || 'Error al eliminar mensaje');
+  }
+}
+
+/** Verifica si el servicio (licencia) existe en temas FAQ y tiene preguntas. */
+export async function verificarServicioFAQ(servicio: string): Promise<{ existe: boolean; tienePreguntas?: boolean }> {
+  const apiBase = getRuntimeApiBaseUrl() !== null && getRuntimeApiBaseUrl() !== ''
+    ? getBackendBaseUrl() + '/api'
+    : API_BASE_URL;
+  const url = `${apiBase.replace(/\/$/, '')}/faq-acceso/verificar-servicio?servicio=${encodeURIComponent(servicio.trim())}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Error al verificar servicio FAQ');
+  return res.json();
+}
+
 // Crear nuevo contacto
 export async function crearContacto(data: CrearContactoRequest): Promise<Contacto> {
   const response = await fetch(`${API_BASE_URL}/contactos`, {

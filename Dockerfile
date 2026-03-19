@@ -18,10 +18,6 @@ COPY . .
 # En producción usa /api (proxy nginx), no localhost
 ENV VITE_API_URL=/api
 
-# Preguntas frecuentes: redirección al hacer clic en "Ver preguntas frecuentes"
-ARG VITE_FAQ_URL=https://preguntasfrecuntes.hginet.com.co
-ENV VITE_FAQ_URL=${VITE_FAQ_URL}
-
 # Webhooks Isa (opcional; si no se pasan, se usan las del código)
 ARG VITE_ISA_REGISTRO_WEBHOOK_URL
 ENV VITE_ISA_REGISTRO_WEBHOOK_URL=${VITE_ISA_REGISTRO_WEBHOOK_URL}
