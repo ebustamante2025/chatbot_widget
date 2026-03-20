@@ -1,0 +1,62 @@
+/**
+ * Comunicación con la página padre cuando el widget corre dentro de un iframe
+ * (p. ej. isa-widget-loader.js). Permite reducir el iframe al cerrar el chat
+ * para no tapar formularios y botones del sitio anfitrión.
+ */
+export const ISA_WIDGET_MESSAGE_SOURCE = 'isa-widget-chat' as const
+
+export function isEmbeddedInIframe(): boolean {
+  try {
+    return window.self !== window.top
+  } catch {
+    return true
+  }
+}
+
+export type WidgetEmbedView = 'panel' | 'isa' | 'faq' | 'agente'
+
+/**
+ * Notifica al padre el tamaño deseado del iframe.
+ * Cerrado: solo la burbuja (~260×88).
+ * Abierto: ventana de chat/registro (limitado al viewport del iframe).
+ */
+export function postWidgetFrameResize(params: {
+  open: boolean
+  registered: boolean
+  view: WidgetEmbedView
+}): void {
+  if (!isEmbeddedInIframe()) return
+
+  const { open, registered, view } = params
+  const vw = typeof window !== 'undefined' ? window.innerWidth : 400
+  const vh = typeof window !== 'undefined' ? window.innerHeight : 600
+
+  let width: number
+  let height: number
+
+  if (!open) {
+    width = 280
+    height = 96
+  } else if (!registered) {
+    width = Math.min(420, Math.max(320, vw - 16))
+    height = Math.min(640, Math.max(480, Math.round(vh * 0.92)))
+  } else {
+    width = Math.min(400, Math.max(320, vw - 16))
+    if (view === 'agente' || view === 'isa') {
+      height = Math.min(580, Math.max(480, Math.round(vh * 0.9)))
+    } else {
+      height = Math.min(540, Math.max(440, Math.round(vh * 0.85)))
+    }
+  }
+
+  window.parent.postMessage(
+    {
+      source: ISA_WIDGET_MESSAGE_SOURCE,
+      type: 'resize',
+      width,
+      height,
+      open,
+    },
+    '*'
+  )
+}

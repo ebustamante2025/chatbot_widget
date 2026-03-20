@@ -21,8 +21,12 @@
         apiBaseUrl: window.IsaWidgetConfig?.apiBaseUrl ?? '',
         position: window.IsaWidgetConfig?.position || 'bottom-right', // 'bottom-right' | 'bottom-left'
         zIndex: window.IsaWidgetConfig?.zIndex || 9999,
+        // Tamaño máximo cuando el chat está abierto (el iframe se achica solo al cerrar vía postMessage)
         width: window.IsaWidgetConfig?.width || 400,
-        height: window.IsaWidgetConfig?.height || 650
+        height: window.IsaWidgetConfig?.height || 650,
+        closedWidth: window.IsaWidgetConfig?.closedWidth || 280,
+        closedHeight: window.IsaWidgetConfig?.closedHeight || 96,
+        edgeOffset: window.IsaWidgetConfig?.edgeOffset || 20
     };
     
     var config = Object.assign({}, defaultConfig, window.IsaWidgetConfig || {});
@@ -59,24 +63,60 @@
         
         // Evento de carga
         iframe.addEventListener('load', function() {});
+        
+        // Redimensionar iframe según el estado del chat (cerrado = solo burbuja, no tapa formularios)
+        setupIframeResizeListener(iframe);
+    }
+    
+    function getWidgetOrigin() {
+        try {
+            return new URL(config.widgetUrl).origin;
+        } catch (e) {
+            return '';
+        }
+    }
+    
+    function setupIframeResizeListener(iframe) {
+        window.addEventListener('message', function(event) {
+            var data = event.data;
+            if (!data || data.source !== 'isa-widget-chat' || data.type !== 'resize') return;
+            var expectedOrigin = getWidgetOrigin();
+            if (expectedOrigin && event.origin !== expectedOrigin) return;
+            if (typeof data.width !== 'number' || typeof data.height !== 'number') return;
+            var w = Math.max(80, Math.round(data.width));
+            var h = Math.max(72, Math.round(data.height));
+            if (data.open) {
+                var vw = window.innerWidth || 1024;
+                var vh = window.innerHeight || 768;
+                w = Math.min(w, vw - 24);
+                h = Math.min(h, vh - 24);
+            }
+            iframe.style.width = w + 'px';
+            iframe.style.height = h + 'px';
+        });
     }
     
     /**
-     * Obtiene los estilos CSS para el widget
+     * Estilos iniciales del iframe: compacto hasta que el widget envíe el primer resize
      */
     function getWidgetStyles() {
         var isRight = config.position === 'bottom-right';
+        var off = (typeof config.edgeOffset === 'number' ? config.edgeOffset : 20) + 'px';
+        var cw = config.closedWidth || 280;
+        var ch = config.closedHeight || 96;
         var styles = [
             'position: fixed',
-            isRight ? 'right: 0' : 'left: 0',
-            'bottom: 0',
-            'width: ' + config.width + 'px',
-            'height: ' + config.height + 'px',
+            isRight ? 'right: ' + off : 'left: ' + off,
+            'bottom: ' + off,
+            'width: ' + cw + 'px',
+            'height: ' + ch + 'px',
             'border: none',
             'z-index: ' + config.zIndex,
-            'box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.2)',
-            'border-radius: 20px 20px 0 0',
-            'transition: all 0.3s ease'
+            'box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18)',
+            'border-radius: 16px',
+            'transition: width 0.25s ease, height 0.25s ease',
+            'background: transparent',
+            'overflow: hidden'
         ];
         return styles.join('; ');
     }
@@ -93,20 +133,16 @@
         var style = document.createElement('style');
         style.id = 'isa-widget-styles';
         style.textContent = `
+            /* En móvil el widget puede ocupar pantalla completa; el iframe sigue controlando tamaño vía postMessage en escritorio */
             @media (max-width: 768px) {
                 #isa-chatbot-widget {
                     width: 100% !important;
-                    height: 100vh !important;
+                    height: 100% !important;
+                    max-height: 100dvh !important;
                     border-radius: 0 !important;
                     right: 0 !important;
                     left: 0 !important;
-                }
-            }
-            
-            @media (max-width: 1024px) and (min-width: 769px) {
-                #isa-chatbot-widget {
-                    width: 350px !important;
-                    height: 600px !important;
+                    bottom: 0 !important;
                 }
             }
         `;

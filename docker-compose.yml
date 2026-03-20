@@ -12,7 +12,9 @@ services:
     image: widget-chatbot:latest
     container_name: widget-chatbot-isa
     ports:
-      - "8180:80"
+       - "8180:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     networks:
       - crm-chatbot-network
     restart: unless-stopped

@@ -8,6 +8,7 @@ import PreguntasFrecuentes from './PreguntasFrecuentes'
 import ChatAgente from './ChatAgente'
 import { Message, UserData } from '../types'
 import { sendMessageToIsaAgent, crearConversacion, guardarMensajeBD, obtenerTokenAccesoFAQ, verificarServicioFAQ } from '../services/api'
+import { postWidgetFrameResize } from '../utils/widgetEmbed'
 import './Chatbot.css'
 
 const STORAGE_KEY_USER = 'isa_widget_user'
@@ -35,7 +36,8 @@ function saveStoredUser(data: UserData | null) {
 const FAQ_URL = (() => {
   const envUrl = (import.meta.env.VITE_FAQ_URL || '').replace(/\/$/, '')
   if (envUrl) return envUrl
-  return import.meta.env.DEV ? 'http://localhost:3009' : 'http://localhost:3008'
+  // ? 'http://localhost:3009' : 'http://localhost:3008'
+  return import.meta.env.VITE_FAQ_URL || 'https://preguntasfrecuntes.hginet.com.co'
 })()
 
 function generateSessionId(): string {
@@ -66,6 +68,11 @@ function Chatbot() {
       setIsRegistered(true)
     }
   }, [])
+
+  // En iframe (loader externo): avisar al padre el tamaño para no tapar toda la página cuando el chat está cerrado
+  useEffect(() => {
+    postWidgetFrameResize({ open: isOpen, registered: isRegistered, view })
+  }, [isOpen, isRegistered, view])
 
   const handleRegistration = (data: UserData) => {
     setUserData(data)
@@ -299,9 +306,10 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
                     }
                   }
                   setPanelFaqError(null)
-                  const baseUrl = (typeof window !== 'undefined' && window.location.port === '3002')
-                    ? 'http://localhost:3009'
-                    : FAQ_URL
+                 // const baseUrl = (typeof window !== 'undefined' && window.location.port === '3002')
+                  //  ? 'http://localhost:3009'
+                   // : FAQ_URL
+                   const baseUrl = FAQ_URL
                   const params = new URLSearchParams()
                   if (userData!.empresaId != null && userData!.contactoId != null) {
                     try {
