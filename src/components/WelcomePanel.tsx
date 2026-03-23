@@ -8,6 +8,7 @@ interface WelcomePanelProps {
   onSelectPreguntasFrecuentes: () => void
   onSelectChatearIsa: () => void
   onSelectChatearAgente: () => void
+  onSelectPrueba?: () => void
 }
 
 function WelcomePanel({
@@ -16,6 +17,7 @@ function WelcomePanel({
   onSelectPreguntasFrecuentes,
   onSelectChatearIsa,
   onSelectChatearAgente,
+  onSelectPrueba,
 }: WelcomePanelProps) {
   return (
     <div className="welcome-panel">
@@ -26,7 +28,13 @@ function WelcomePanel({
       <p className="welcome-panel-choose">¿Cómo podemos ayudarte?</p>
       {faqError && (
         <div className="welcome-panel-error">
-          {faqError}
+          {faqError.split('\n').map((line, index) => {
+            if (line.trim() === '') return <br key={index} />
+            if (line.includes('Acceso al Asistente Inteligente')) {
+              return <h3 key={index} style={{ margin: '0 0 12px 0', fontSize: '15px', fontWeight: 600 }}>{line}</h3>
+            }
+            return <p key={index} style={{ margin: '0 0 8px 0' }}>{line}</p>
+          })}
         </div>
       )}
       <div className="welcome-panel-options">
@@ -42,7 +50,7 @@ function WelcomePanel({
         </button>
         <button
           type="button"
-          className="welcome-panel-option welcome-panel-option-isa"
+          className="welcome-panel-option welcome-panel-option-agente-isa"
           onClick={onSelectChatearIsa}
           aria-label="Chatear con Isa"
         >
@@ -50,7 +58,7 @@ function WelcomePanel({
             <ChatIcon />
           </span>
           <span className="welcome-panel-option-label">Chatear con Isa</span>
-          <span className="welcome-panel-option-desc">Asistente virtual 24/7</span>
+          <span className="welcome-panel-option-desc">Isa · Asistente virtual inteligente 24/7</span>
         </button>
         <button
           type="button"
@@ -62,6 +70,18 @@ function WelcomePanel({
           <span className="welcome-panel-option-label">Chatear con un agente</span>
           <span className="welcome-panel-option-desc">Atención humana en vivo</span>
         </button>
+        {onSelectPrueba && (
+          <button
+            type="button"
+            className="welcome-panel-option"
+            onClick={onSelectPrueba}
+            aria-label="Prueba"
+          >
+            <span className="welcome-panel-option-icon">🧪</span>
+            <span className="welcome-panel-option-label">Prueba</span>
+            <span className="welcome-panel-option-desc">Opción de prueba</span>
+          </button>
+        )}
       </div>
     </div>
   )

@@ -13,7 +13,7 @@ export function isEmbeddedInIframe(): boolean {
   }
 }
 
-export type WidgetEmbedView = 'panel' | 'isa' | 'faq' | 'agente'
+export type WidgetEmbedView = 'panel' | 'isa' | 'faq' | 'agente' | 'ia360'
 
 /**
  * Notifica al padre el tamaño deseado del iframe.

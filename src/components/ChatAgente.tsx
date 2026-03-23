@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { io, type Socket } from 'socket.io-client'
 import {
   crearConversacion,
+  CANAL_WIDGET_AGENTE,
   enviarMensajeAgente,
   editarMensajeContacto,
   eliminarMensajeContacto,
@@ -91,7 +92,7 @@ function ChatAgente({ userData, onBack, onBackFromClosed }: ChatAgenteProps) {
 
     if (initKeyRef.current !== key) {
       initKeyRef.current = key
-      initPromiseRef.current = crearConversacion(eid, cid)
+      initPromiseRef.current = crearConversacion(eid, cid, { canal: CANAL_WIDGET_AGENTE })
     }
     const promise = initPromiseRef.current
     if (!promise) {

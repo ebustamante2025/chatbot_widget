@@ -1,5 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004/api';
-
+//const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004/api';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 /** URL base del backend en runtime (query ?apiBaseUrl= o window.IsaWidgetConfig.apiBaseUrl). Si se define, tiene prioridad sobre la de build. */
 let runtimeApiBaseUrl: string | null = null;
 
@@ -195,14 +195,25 @@ export interface Conversacion {
   }>;
 }
 
-export async function crearConversacion(empresaId: number, contactoId: number): Promise<Conversacion> {
+/** Chat con Isa (bot) — consultable en CRM por `conversaciones.canal = 'WEB_ISA'`. */
+export const CANAL_WIDGET_ISA = 'WEB_ISA';
+
+/** Cola “chatear con agente” — canal distinto de Isa y de IA360_DOC. */
+export const CANAL_WIDGET_AGENTE = 'WEB_AGENTE';
+
+export async function crearConversacion(
+  empresaId: number,
+  contactoId: number,
+  opts?: { canal?: string },
+): Promise<Conversacion> {
+  const canal = opts?.canal ?? 'WEB';
   const response = await fetch(`${API_BASE_URL}/conversaciones`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       empresa_id: empresaId,
       contacto_id: contactoId,
-      canal: 'WEB',
+      canal,
       tema: 'SOPORTE',
     }),
   });
@@ -240,7 +251,7 @@ export async function enviarMensajeAgente(data: {
 export async function guardarMensajeBD(data: {
   empresa_id: number;
   conversacion_id: number;
-  tipo_emisor: 'CONTACTO' | 'BOT' | 'SISTEMA';
+  tipo_emisor: 'CONTACTO' | 'BOT' | 'IA360' | 'SISTEMA';
   contacto_id?: number;
   contenido: string;
 }): Promise<{ mensaje: unknown }> {
@@ -330,18 +341,45 @@ export async function crearContacto(data: CrearContactoRequest): Promise<Contact
 }
 
 /** Obtiene un token de acceso a la página de preguntas frecuentes (validación NIT + usuario). */
-export async function obtenerTokenAccesoFAQ(empresaId: number, contactoId: number): Promise<string | null> {
+export async function obtenerTokenAccesoFAQ(
+  empresaId: number,
+  contactoId: number,
+  /** Si se envía, queda firmado en el JWT (asistente documentación / servicio en ese momento). */
+  servicio?: string
+): Promise<string | null> {
   const apiBase = getRuntimeApiBaseUrl() !== null && getRuntimeApiBaseUrl() !== ''
     ? getBackendBaseUrl() + '/api'
     : API_BASE_URL;
   const url = apiBase.replace(/\/$/, '') + '/faq-acceso';
+  const body: { empresaId: number; contactoId: number; servicio?: string } = { empresaId, contactoId };
+  if (servicio != null && String(servicio).trim() !== '') {
+    body.servicio = String(servicio).trim();
+  }
   const res = await fetch(url, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ empresaId, contactoId }),
+    body: JSON.stringify(body),
   });
   const data = (await res.json()) as { success?: boolean; token?: string };
   if (data?.success && typeof data?.token === 'string') return data.token;
+  return null;
+}
+
+/**
+ * Registra el JWT en el API y devuelve un id de un solo uso para abrir FAQ/asistente sin el token en la URL (?otk=...).
+ */
+export async function crearHandoffDesdeToken(token: string): Promise<string | null> {
+  const apiBase = getRuntimeApiBaseUrl() !== null && getRuntimeApiBaseUrl() !== ''
+    ? getBackendBaseUrl() + '/api'
+    : API_BASE_URL;
+  const url = apiBase.replace(/\/$/, '') + '/faq-acceso/handoff';
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
+  });
+  const data = (await res.json()) as { success?: boolean; handoffId?: string };
+  if (data?.success && typeof data?.handoffId === 'string') return data.handoffId;
   return null;
 }
 
@@ -423,4 +461,117 @@ export async function sendMessageToIsaAgent(
     console.warn('[Isa API] Respuesta sin texto reconocido:', data);
   }
   return 'No pude procesar la respuesta. Intenta de nuevo.';
+}
+
+// --- IA360 (documentación) vía API: mismo backend que FAQ; chat en widget (POST /ia360-doc/chat) ---
+
+function getApiBaseForIa360(): string {
+  return getRuntimeApiBaseUrl() !== null && getRuntimeApiBaseUrl() !== ''
+    ? `${getBackendBaseUrl()}/api`
+    : API_BASE_URL;
+}
+
+export interface Ia360ContextoResponse {
+  success?: boolean;
+  empresa_nombre?: string;
+  empresa_nit?: string | null;
+  contacto_nombre?: string;
+  contacto_documento?: string | null;
+  contacto_cargo?: string | null;
+  message?: string;
+}
+
+/** GET /ia360-doc/contexto — contexto empresa/contacto para cabecera del chat IA360 */
+export async function getIa360Contexto(token: string): Promise<Ia360ContextoResponse | null> {
+  const base = getApiBaseForIa360().replace(/\/$/, '');
+  const url = `${base}/ia360-doc/contexto?token=${encodeURIComponent(token)}`;
+  const res = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
+  const data = (await res.json()) as Ia360ContextoResponse;
+  if (!res.ok || !data?.success) return null;
+  return data;
+}
+
+export interface Ia360HistorialMensaje {
+  id?: number;
+  rol: 'usuario' | 'asistente';
+  contenido: string;
+  creado_en?: string | null;
+}
+
+/** GET /ia360-doc/historial */
+export async function getIa360Historial(
+  token: string,
+  limite = 500
+): Promise<Ia360HistorialMensaje[]> {
+  const base = getApiBaseForIa360().replace(/\/$/, '');
+  const url = `${base}/ia360-doc/historial?token=${encodeURIComponent(token)}&limite=${limite}`;
+  const res = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
+  const data = (await res.json()) as {
+    success?: boolean;
+    mensajes?: Array<{ rol?: string; contenido?: string; creado_en?: string | null }>;
+  };
+  if (!res.ok || !data?.success || !Array.isArray(data.mensajes)) return [];
+  const out: Ia360HistorialMensaje[] = [];
+  for (const m of data.mensajes) {
+    const rol = m.rol === 'usuario' ? 'usuario' : m.rol === 'asistente' ? 'asistente' : null;
+    if (!rol || typeof m.contenido !== 'string') continue;
+    out.push({ rol, contenido: m.contenido, creado_en: m.creado_en ?? null });
+  }
+  return out;
+}
+
+/** POST /ia360-doc/mensaje — guarda un mensaje en CRM sin invocar al modelo (saludo inicial, etc.) */
+export async function guardarIa360MensajeDoc(params: {
+  token: string;
+  rol: 'usuario' | 'asistente';
+  contenido: string;
+}): Promise<void> {
+  const base = getApiBaseForIa360().replace(/\/$/, '');
+  const url = `${base}/ia360-doc/mensaje`;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({
+      token: params.token,
+      rol: params.rol,
+      contenido: params.contenido.trim(),
+    }),
+  });
+  const data = (await res.json()) as { success?: boolean; message?: string };
+  if (!res.ok || !data?.success) {
+    throw new Error(data?.message || `Error ${res.status}`);
+  }
+}
+
+/** POST /ia360-doc/chat — una pregunta; el API guarda usuario + asistente en CRM */
+export async function enviarIa360DocChat(params: {
+  token: string;
+  message: string;
+  history: Array<{ role: 'user' | 'assistant'; content: string }>;
+  servicio?: string;
+}): Promise<{ reply: string; warning?: string }> {
+  const base = getApiBaseForIa360().replace(/\/$/, '');
+  const url = `${base}/ia360-doc/chat`;
+  const body: Record<string, unknown> = {
+    token: params.token,
+    message: params.message.trim(),
+    history: params.history,
+  };
+  if (params.servicio?.trim()) body.servicio = params.servicio.trim();
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json()) as {
+    success?: boolean;
+    reply?: string;
+    message?: string;
+    warning?: string;
+  };
+  if (!res.ok || !data?.success) {
+    throw new Error(data?.message || `Error ${res.status}`);
+  }
+  const reply = typeof data.reply === 'string' ? data.reply : '';
+  return { reply, warning: data.warning };
 }

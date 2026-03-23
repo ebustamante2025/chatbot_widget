@@ -6,8 +6,16 @@ import RegistrationForm from './RegistrationForm'
 import WelcomePanel from './WelcomePanel'
 import PreguntasFrecuentes from './PreguntasFrecuentes'
 import ChatAgente from './ChatAgente'
+import ChatIA360 from './ChatIA360'
 import { Message, UserData } from '../types'
-import { sendMessageToIsaAgent, crearConversacion, guardarMensajeBD, obtenerTokenAccesoFAQ, verificarServicioFAQ } from '../services/api'
+import {
+  sendMessageToIsaAgent,
+  crearConversacion,
+  CANAL_WIDGET_ISA,
+  guardarMensajeBD,
+  obtenerTokenAccesoFAQ,
+  verificarServicioFAQ,
+} from '../services/api'
 import { postWidgetFrameResize } from '../utils/widgetEmbed'
 import './Chatbot.css'
 
@@ -44,7 +52,15 @@ function generateSessionId(): string {
   return crypto.randomUUID?.()?.replace(/-/g, '') ?? `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}`
 }
 
-type ViewAfterRegistration = 'panel' | 'isa' | 'faq' | 'agente'
+type ViewAfterRegistration = 'panel' | 'isa' | 'faq' | 'agente' | 'ia360'
+
+/**
+ * Prueba → IA360 en el widget por defecto (mismo token/servicio/CRM que chatbot_Agente).
+ * Backend: POST /api/ia360-doc/chat (OpenAI + Notion + mensajes canal IA360_DOC).
+ * Para abrir solo Streamlit: VITE_IA360_USE_WIDGET=false
+ */
+const IA360_USE_WIDGET =
+  import.meta.env.VITE_IA360_USE_WIDGET !== 'false' && import.meta.env.VITE_IA360_USE_WIDGET !== '0'
 
 function Chatbot() {
   const [isOpen, setIsOpen] = useState(false)
@@ -55,6 +71,10 @@ function Chatbot() {
   const [isSending, setIsSending] = useState(false)
   /** Mensaje de validación en el menú (ej. servicio sin preguntas frecuentes), como la cédula/permisos */
   const [panelFaqError, setPanelFaqError] = useState<string | null>(null)
+  /** Sesión IA360 en widget: token FAQ + servicio (licencia) */
+  const [ia360WidgetSession, setIa360WidgetSession] = useState<{ token: string; servicio: string } | null>(
+    null
+  )
   const isaSessionIdRef = useRef<string>(generateSessionId())
   // Conversación en BD para el chat con Isa
   const isaConversacionIdRef = useRef<number | null>(null)
@@ -101,7 +121,9 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
 
     creandoConversacionRef.current = true
     try {
-      const conv = await crearConversacion(userData.empresaId, userData.contactoId)
+      const conv = await crearConversacion(userData.empresaId, userData.contactoId, {
+        canal: CANAL_WIDGET_ISA,
+      })
       isaConversacionIdRef.current = conv.id_conversacion
       return conv.id_conversacion
     } catch (err) {
@@ -158,7 +180,7 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
             await guardarMensajeBD({
               empresa_id: userData.empresaId,
               conversacion_id: convId,
-              tipo_emisor: 'BOT',
+              tipo_emisor: 'IA360',
               contenido: respuestaIsa,
             })
           } catch (err) {
@@ -244,7 +266,7 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
           await guardarMensajeBD({
             empresa_id: userData.empresaId,
             conversacion_id: convId,
-            tipo_emisor: 'BOT',
+            tipo_emisor: 'IA360',
             contenido: responseText,
           })
         } catch (err) {
@@ -338,6 +360,51 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
                   setPanelFaqError(null)
                   setView('agente')
                 }}
+                onSelectPrueba={async () => {
+                  const mensajeAcceso =
+                    'Acceso al Asistente Inteligente\n\nPara acceder al asistente inteligente debe validarse con su NIT y usuario en el chat de soporte. Abra el chatbot, ingrese el NIT de su empresa, valide el director (usuario) y seleccione la licencia. Luego pulse "Prueba" en el menú del chat.\n\nHasta entonces no podrá acceder a esta opción.'
+
+                  if (!userData) {
+                    setPanelFaqError(mensajeAcceso)
+                    return
+                  }
+                  if (!userData.empresaId || !userData.contactoId) {
+                    setPanelFaqError(mensajeAcceso)
+                    return
+                  }
+                  const servicio = userData.licencia?.trim()
+                  if (!servicio) {
+                    setPanelFaqError(mensajeAcceso)
+                    return
+                  }
+
+                  setPanelFaqError(null)
+                  try {
+                    const token = await obtenerTokenAccesoFAQ(
+                      userData.empresaId,
+                      userData.contactoId,
+                      servicio
+                    )
+                    if (!token) {
+                      setPanelFaqError(
+                        'No se pudo obtener acceso. Verifique que el backend esté en ejecución y que haya completado el registro con NIT y director.'
+                      )
+                      return
+                    }
+                    if (IA360_USE_WIDGET) {
+                      setIa360WidgetSession({ token, servicio })
+                      setView('ia360')
+                      return
+                    }
+                    const baseUrl = (import.meta.env.VITE_AGENTE_URL || 'http://localhost:8501').replace(/\/$/, '')
+                    const params = new URLSearchParams()
+                    params.set('servicio', servicio)
+                    params.set('token', token)
+                    window.open(`${baseUrl}/?${params.toString()}`, '_blank')
+                  } catch {
+                    setPanelFaqError(mensajeAcceso)
+                  }
+                }}
               />
             </>
           ) : view === 'faq' ? (
@@ -379,6 +446,39 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
                   setIsRegistered(false)
                 }}
               />
+            </>
+          ) : view === 'ia360' && ia360WidgetSession ? (
+            <>
+              <div className="chatbot-header chatbot-header-panel">
+                <div className="chatbot-header-content">
+                  <button
+                    type="button"
+                    className="back-to-panel-button"
+                    onClick={() => {
+                      setView('panel')
+                      setIa360WidgetSession(null)
+                    }}
+                    aria-label="Volver al menú"
+                  >
+                    ← Volver
+                  </button>
+                  <h3>IA360 · documentación</h3>
+                </div>
+                <button
+                  className="close-button"
+                  onClick={() => setIsOpen(false)}
+                  aria-label="Cerrar chat"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="chatbot-ia360-body">
+                <ChatIA360
+                  userData={userData!}
+                  token={ia360WidgetSession.token}
+                  servicio={ia360WidgetSession.servicio}
+                />
+              </div>
             </>
           ) : (
             <>

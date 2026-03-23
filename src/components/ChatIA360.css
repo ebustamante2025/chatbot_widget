@@ -1,0 +1,51 @@
+.chat-ia360 {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background: #eceff4;
+}
+
+.chat-ia360-context {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #475569;
+  background: #e0e7ef;
+  border-bottom: 1px solid #cbd5e1;
+}
+
+.chat-ia360-context-text {
+  display: block;
+  line-height: 1.35;
+}
+
+.chat-ia360-error {
+  padding: 8px 12px;
+  font-size: 13px;
+  color: #b91c1c;
+  background: #fef2f2;
+  border-bottom: 1px solid #fecaca;
+}
+
+.chat-ia360-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 8px;
+  scroll-behavior: smooth;
+}
+
+/** Ancla invisible para scroll al último mensaje */
+.chat-ia360-scroll-anchor {
+  height: 1px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.chat-ia360-loading {
+  padding: 12px;
+  color: #64748b;
+  font-size: 14px;
+  margin: 0;
+}

@@ -91,6 +91,15 @@
   animation: slideUp 0.3s ease-out;
 }
 
+/** Contenedor del chat IA360 dentro del widget (ocupa el alto bajo la cabecera) */
+.chatbot-ia360-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 @keyframes slideUp {
   from {
     opacity: 0;
@@ -214,4 +223,3 @@
     right: 0;
   }
 }
-
