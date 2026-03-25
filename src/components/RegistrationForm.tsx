@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, useRef, FormEvent } from 'react'
 import { UserData } from '../types'
 import {
   verificarEmpresa,
@@ -38,6 +38,7 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
   const [razonSocial, setRazonSocial] = useState<string>('')
   const [contratosVigentes, setContratosVigentes] = useState<ContratoVigente[]>([])
   const [contactosClientes, setContactosClientes] = useState<ContactoCliente[]>([])
+  const licenciaEnviandoRef = useRef(false)
 
   // Validar conexión con backend y BD al montar el formulario
   useEffect(() => {
@@ -142,12 +143,20 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
     setStep('licencia')
   }
 
-  const handleSeleccionarLicencia = async () => {
-    if (!licenciaSeleccionada) {
+  /**
+   * Completa el registro al elegir licencia (desde clic en la lista).
+   * `descripcionLicencia`: opcional para no depender del setState asíncrono al pulsar la fila.
+   */
+  const handleSeleccionarLicencia = async (descripcionLicencia?: string | null) => {
+    const lic = (descripcionLicencia ?? licenciaSeleccionada)?.trim()
+    if (!lic) {
       setErrors({ licencia: MENSAJES_VALIDACION.debeSeleccionarLicencia })
       return
     }
+    if (loading || licenciaEnviandoRef.current) return
+    licenciaEnviandoRef.current = true
 
+    setLicenciaSeleccionada(lic)
     setLoading(true)
     setErrors({})
     setMessage(MENSAJES_VALIDACION.procesando)
@@ -164,7 +173,7 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
           razon_social: nombreEmpresa,
           director: directorNombre,
           director_cedula: directorCedula.trim(),
-          licencia: formatearNombreLicencia(licenciaSeleccionada),
+          licencia: formatearNombreLicencia(lic),
         }),
       })
     } catch (err) {
@@ -192,6 +201,7 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
       console.warn('Error al verificar/crear empresa:', error)
       setErrors({ licencia: error.message || MENSAJES_VALIDACION.errorRegistrarEmpresa })
       setLoading(false)
+      licenciaEnviandoRef.current = false
       return
     }
 
@@ -218,19 +228,21 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
       console.warn('Error al verificar/crear contacto:', error)
       setErrors({ licencia: error.message || MENSAJES_VALIDACION.errorRegistrarContacto })
       setLoading(false)
+      licenciaEnviandoRef.current = false
       return
     }
 
     setLoading(false)
+    licenciaEnviandoRef.current = false
 
-    // 4. Completar registro y pasar al chat
+    // 4. Completar registro y pasar al menú (WelcomePanel)
     onSubmit({
       nit: nit.trim(),
       empresa: empresaNombre,
       funcionario: directorNombre,
       empresaId,
       contactoId,
-      licencia: licenciaSeleccionada ? formatearNombreLicencia(licenciaSeleccionada) : undefined,
+      licencia: formatearNombreLicencia(lic),
     })
   }
 
@@ -241,7 +253,7 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
     } else if (step === 'director') {
       await handleVerificarDirector()
     } else if (step === 'licencia') {
-      await handleSeleccionarLicencia()
+      await handleSeleccionarLicencia(null)
     }
   }
 
@@ -357,17 +369,17 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
           <>
             <div className="licencias-info">
               <p className="licencias-titulo">{razonSocial}</p>
-              <p className="licencias-subtitulo">Seleccione la licencia</p>
+              <p className="licencias-subtitulo">Toque la licencia con la que desea consultar para continuar al menú</p>
               <ul className="licencias-lista">
                 {contratosVigentes.map((c, idx) => (
                   <li
                     key={`${c.Codigo}-${idx}`}
                     className={`licencia-item licencia-seleccionable ${licenciaSeleccionada === c.Descripcion ? 'licencia-selected' : ''}`}
                     onClick={() => {
-                      setLicenciaSeleccionada(c.Descripcion)
                       if (errors.licencia) {
                         setErrors(prev => { const n = { ...prev }; delete n.licencia; return n })
                       }
+                      void handleSeleccionarLicencia(c.Descripcion)
                     }}
                   >
                     <span className="licencia-dot dot-activa" />
@@ -381,19 +393,20 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
           </>
         )}
 
-        <button 
-          type="submit" 
-          className="submit-button"
-          disabled={loading}
-        >
-          {loading
-            ? 'Procesando...'
-            : step === 'nit'
-              ? 'Verificar NIT'
-              : step === 'director'
-                ? 'Verificar Director'
-                : 'Continuar con licencia'}
-        </button>
+        {step !== 'licencia' && (
+          <button type="submit" className="submit-button" disabled={loading}>
+            {loading
+              ? 'Procesando...'
+              : step === 'nit'
+                ? 'Verificar NIT'
+                : 'Verificar Director'}
+          </button>
+        )}
+        {step === 'licencia' && loading && (
+          <p className="licencia-procesando" role="status">
+            Procesando registro…
+          </p>
+        )}
       </form>
     </div>
   )
