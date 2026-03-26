@@ -471,6 +471,35 @@ function getApiBaseForIa360(): string {
     : API_BASE_URL;
 }
 
+export type Ia360TokenRenewalOptions = {
+  /** Mismo servicio firmado en el JWT (Prueba / IA360) para incluir en la renovación. */
+  servicio?: string;
+  /** Si el API responde 401, se llama a /faq-acceso/renovar y, si hay token nuevo, se ejecuta este callback y se reintenta una vez. */
+  onTokenRenewed?: (newToken: string) => void;
+};
+
+/**
+ * Renueva el JWT FAQ/IA360 (firma válida aunque haya expirado). POST /api/faq-acceso/renovar
+ */
+export async function renewFaqAccessToken(
+  currentToken: string,
+  servicio?: string
+): Promise<string | null> {
+  const base = getApiBaseForIa360().replace(/\/$/, '');
+  const url = `${base}/faq-acceso/renovar`;
+  const body: { token: string; servicio?: string } = { token: currentToken.trim() };
+  const s = servicio?.trim();
+  if (s) body.servicio = s;
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json()) as { success?: boolean; token?: string };
+  if (res.ok && data?.success && typeof data.token === 'string') return data.token;
+  return null;
+}
+
 export interface Ia360ContextoResponse {
   success?: boolean;
   empresa_nombre?: string;
@@ -482,10 +511,23 @@ export interface Ia360ContextoResponse {
 }
 
 /** GET /ia360-doc/contexto — contexto empresa/contacto para cabecera del chat IA360 */
-export async function getIa360Contexto(token: string): Promise<Ia360ContextoResponse | null> {
+export async function getIa360Contexto(
+  token: string,
+  renewal?: Ia360TokenRenewalOptions
+): Promise<Ia360ContextoResponse | null> {
   const base = getApiBaseForIa360().replace(/\/$/, '');
-  const url = `${base}/ia360-doc/contexto?token=${encodeURIComponent(token)}`;
-  const res = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
+  const fetchCtx = async (tok: string) => {
+    const url = `${base}/ia360-doc/contexto?token=${encodeURIComponent(tok)}`;
+    return fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
+  };
+  let res = await fetchCtx(token);
+  if (res.status === 401 && renewal?.onTokenRenewed) {
+    const nt = await renewFaqAccessToken(token, renewal.servicio);
+    if (nt) {
+      renewal.onTokenRenewed(nt);
+      res = await fetchCtx(nt);
+    }
+  }
   const data = (await res.json()) as Ia360ContextoResponse;
   if (!res.ok || !data?.success) return null;
   return data;
@@ -501,11 +543,22 @@ export interface Ia360HistorialMensaje {
 /** GET /ia360-doc/historial */
 export async function getIa360Historial(
   token: string,
-  limite = 500
+  limite = 500,
+  renewal?: Ia360TokenRenewalOptions
 ): Promise<Ia360HistorialMensaje[]> {
   const base = getApiBaseForIa360().replace(/\/$/, '');
-  const url = `${base}/ia360-doc/historial?token=${encodeURIComponent(token)}&limite=${limite}`;
-  const res = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
+  const fetchHist = async (tok: string) => {
+    const url = `${base}/ia360-doc/historial?token=${encodeURIComponent(tok)}&limite=${limite}`;
+    return fetch(url, { method: 'GET', headers: { Accept: 'application/json' } });
+  };
+  let res = await fetchHist(token);
+  if (res.status === 401 && renewal?.onTokenRenewed) {
+    const nt = await renewFaqAccessToken(token, renewal.servicio);
+    if (nt) {
+      renewal.onTokenRenewed(nt);
+      res = await fetchHist(nt);
+    }
+  }
   const data = (await res.json()) as {
     success?: boolean;
     mensajes?: Array<{ rol?: string; contenido?: string; creado_en?: string | null }>;
@@ -525,18 +578,29 @@ export async function guardarIa360MensajeDoc(params: {
   token: string;
   rol: 'usuario' | 'asistente';
   contenido: string;
+  servicio?: string;
+  onTokenRenewed?: (newToken: string) => void;
 }): Promise<void> {
   const base = getApiBaseForIa360().replace(/\/$/, '');
   const url = `${base}/ia360-doc/mensaje`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({
-      token: params.token,
-      rol: params.rol,
-      contenido: params.contenido.trim(),
-    }),
-  });
+  const post = async (tok: string) =>
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        token: tok,
+        rol: params.rol,
+        contenido: params.contenido.trim(),
+      }),
+    });
+  let res = await post(params.token);
+  if (res.status === 401 && params.onTokenRenewed) {
+    const nt = await renewFaqAccessToken(params.token, params.servicio);
+    if (nt) {
+      params.onTokenRenewed(nt);
+      res = await post(nt);
+    }
+  }
   const data = (await res.json()) as { success?: boolean; message?: string };
   if (!res.ok || !data?.success) {
     throw new Error(data?.message || `Error ${res.status}`);
@@ -549,20 +613,33 @@ export async function enviarIa360DocChat(params: {
   message: string;
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
   servicio?: string;
+  onTokenRenewed?: (newToken: string) => void;
 }): Promise<{ reply: string; warning?: string }> {
   const base = getApiBaseForIa360().replace(/\/$/, '');
   const url = `${base}/ia360-doc/chat`;
-  const body: Record<string, unknown> = {
-    token: params.token,
-    message: params.message.trim(),
-    history: params.history,
+  const buildBody = (tok: string) => {
+    const body: Record<string, unknown> = {
+      token: tok,
+      message: params.message.trim(),
+      history: params.history,
+    };
+    if (params.servicio?.trim()) body.servicio = params.servicio.trim();
+    return body;
   };
-  if (params.servicio?.trim()) body.servicio = params.servicio.trim();
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify(body),
-  });
+  const post = async (tok: string) =>
+    fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(buildBody(tok)),
+    });
+  let res = await post(params.token);
+  if (res.status === 401 && params.onTokenRenewed) {
+    const nt = await renewFaqAccessToken(params.token, params.servicio);
+    if (nt) {
+      params.onTokenRenewed(nt);
+      res = await post(nt);
+    }
+  }
   const data = (await res.json()) as {
     success?: boolean;
     reply?: string;

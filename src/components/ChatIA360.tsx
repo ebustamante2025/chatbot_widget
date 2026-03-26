@@ -1,5 +1,10 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { getIa360Historial, enviarIa360DocChat, guardarIa360MensajeDoc } from '../services/api'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import {
+  getIa360Historial,
+  enviarIa360DocChat,
+  guardarIa360MensajeDoc,
+  type Ia360TokenRenewalOptions,
+} from '../services/api'
 import type { UserData } from '../types'
 import type { Message } from '../types'
 import MessageInput from './MessageInput'
@@ -53,9 +58,11 @@ interface ChatIA360Props {
   userData: UserData
   token: string
   servicio: string
+  /** Tras renovar JWT vía /faq-acceso/renovar, actualiza el token en el padre para siguientes peticiones. */
+  onTokenRenewed?: (newToken: string) => void
 }
 
-function ChatIA360({ userData, token, servicio }: ChatIA360Props) {
+function ChatIA360({ userData, token, servicio, onTokenRenewed }: ChatIA360Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [enviando, setEnviando] = useState(false)
   const [cargando, setCargando] = useState(true)
@@ -63,6 +70,16 @@ function ChatIA360({ userData, token, servicio }: ChatIA360Props) {
   const [infoLine, setInfoLine] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
+  const tokenRef = useRef(token)
+  tokenRef.current = token
+
+  const ia360Renewal = useMemo<Ia360TokenRenewalOptions | undefined>(
+    () =>
+      onTokenRenewed
+        ? { servicio: servicio.trim() || undefined, onTokenRenewed }
+        : undefined,
+    [servicio, onTokenRenewed]
+  )
 
   const scrollToBottom = useCallback(() => {
     window.setTimeout(() => {
@@ -103,7 +120,7 @@ function ChatIA360({ userData, token, servicio }: ChatIA360Props) {
         setInfoLine(buildInfoLine(userData))
       }
       try {
-        const hist = await getIa360Historial(token, 500)
+        const hist = await getIa360Historial(token, 500, ia360Renewal)
         if (cancelled) return
         if (hist.length > 0) {
           const mapped: Message[] = hist.map((m, i) => ({
@@ -126,7 +143,13 @@ function ChatIA360({ userData, token, servicio }: ChatIA360Props) {
               },
             ])
             try {
-              await guardarIa360MensajeDoc({ token, rol: 'usuario', contenido: msgServicio })
+              await guardarIa360MensajeDoc({
+                token,
+                rol: 'usuario',
+                contenido: msgServicio,
+                servicio: servicio.trim() || undefined,
+                onTokenRenewed,
+              })
             } catch (err) {
               if (!cancelled) {
                 setError(
@@ -151,7 +174,7 @@ function ChatIA360({ userData, token, servicio }: ChatIA360Props) {
     return () => {
       cancelled = true
     }
-  }, [token, userData, servicio])
+  }, [token, userData, servicio, ia360Renewal])
 
   const handleSend = async (text: string) => {
     const trimmed = text.trim()
@@ -168,10 +191,11 @@ function ChatIA360({ userData, token, servicio }: ChatIA360Props) {
     try {
       const historyBefore = buildHistoryForApi([...messages, userMsg])
       const { reply } = await enviarIa360DocChat({
-        token,
+        token: tokenRef.current,
         message: trimmed,
         history: historyBefore,
         servicio: servicio.trim() || undefined,
+        onTokenRenewed,
       })
       setMessages((prev) => [
         ...prev,

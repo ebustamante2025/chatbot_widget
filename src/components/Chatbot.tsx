@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import ChatIcon from './ChatIcon'
 import MessageList from './MessageList'
 import MessageInput from './MessageInput'
@@ -79,6 +79,10 @@ function Chatbot() {
   // Conversación en BD para el chat con Isa
   const isaConversacionIdRef = useRef<number | null>(null)
   const creandoConversacionRef = useRef<boolean>(false)
+
+  const handleIa360TokenRenewed = useCallback((newToken: string) => {
+    setIa360WidgetSession((prev) => (prev ? { ...prev, token: newToken } : null))
+  }, [])
 
   // Restaurar usuario desde sessionStorage al montar (para mantener historial al refrescar o reabrir)
   useEffect(() => {
@@ -477,6 +481,7 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
                   userData={userData!}
                   token={ia360WidgetSession.token}
                   servicio={ia360WidgetSession.servicio}
+                  onTokenRenewed={handleIa360TokenRenewed}
                 />
               </div>
             </>

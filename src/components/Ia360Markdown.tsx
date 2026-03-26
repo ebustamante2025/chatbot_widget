@@ -4,6 +4,13 @@ import './Ia360Markdown.css'
 import { getBackendBaseUrl } from '../services/api'
 
 /**
+ * URLs largas o con paréntesis rompen `![alt](url)` en el parser; `![alt](<url>)` es válido en CommonMark.
+ */
+function normalizeMarkdownImages(text: string): string {
+  return text.replace(/!\[([^\]]*)\]\((https:\/\/[^)\n]+)\)/g, '![$1](<$2>)')
+}
+
+/**
  * Notion/S3 a veces bloquean <img> directo (referrer, CORP, URL caducada).
  * Pasamos por GET /api/ia360-doc/proxy-image del CRM (mismo origen que el API).
  */
@@ -38,6 +45,7 @@ interface Ia360MarkdownProps {
  * Sin rehype-sanitize en imágenes: URLs firmadas son largas; el proxy las sirve bien.
  */
 function Ia360Markdown({ text }: Ia360MarkdownProps) {
+  const normalized = normalizeMarkdownImages(text)
   return (
     <div className="chat-ia360-markdown">
       <ReactMarkdown
@@ -68,7 +76,7 @@ function Ia360Markdown({ text }: Ia360MarkdownProps) {
           ),
         }}
       >
-        {text}
+        {normalized}
       </ReactMarkdown>
     </div>
   )
