@@ -57,7 +57,40 @@
   color: #475569;
 }
 
-/* Imágenes desde Notion / Markdown */
+/* Imágenes: caja con altura máxima + scroll (capturas / infografías muy altas) */
+.chat-ia360-md-img-frame {
+  margin: 0.5em 0;
+}
+
+.chat-ia360-md-img-scroll {
+  max-height: min(48vh, 440px);
+  overflow: auto;
+  border-radius: 8px;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  background: #f8fafc;
+}
+
+.chat-ia360-md-img-scroll .chat-ia360-md-img {
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.chat-ia360-md-img-full-link {
+  display: inline-block;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.chat-ia360-md-img-full-link:hover {
+  text-decoration: underline;
+}
+
+/* Imagen dentro del área con scroll */
 .chat-ia360-md-img {
   max-width: 100%;
   height: auto;
@@ -65,6 +98,26 @@
   border-radius: 8px;
   margin: 0.5em 0;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.chat-ia360-img-placeholder {
+  min-height: 120px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  border-radius: 0;
+  background: linear-gradient(90deg, #e2e8f0 25%, #f1f5f9 50%, #e2e8f0 75%);
+  background-size: 200% 100%;
+  animation: chat-ia360-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes chat-ia360-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
 }
 
 .chat-ia360-markdown table {
