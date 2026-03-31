@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import {
   getIa360Historial,
+  getIa360SkipHistorial,
   enviarIa360DocChat,
   guardarIa360MensajeDoc,
   type Ia360TokenRenewalOptions,
@@ -9,6 +10,11 @@ import type { UserData } from '../types'
 import type { Message } from '../types'
 import MessageInput from './MessageInput'
 import Ia360Markdown from './Ia360Markdown'
+import {
+  compactImgPlaceholdersForHistory,
+  stripDataUriImagesFromMarkdown,
+} from '../utils/ia360HistorySanitize'
+import { mergeIa360ImagePlaceholders } from '../utils/ia360MergeImages'
 import './MessageList.css'
 import './ChatIA360.css'
 
@@ -101,9 +107,12 @@ function ChatIA360({ userData, token, servicio, onTokenRenewed }: ChatIA360Props
       const h: Array<{ role: 'user' | 'assistant'; content: string }> = []
       for (const m of msgs) {
         if (m.sender === 'user') {
-          h.push({ role: 'user', content: m.text })
+          h.push({ role: 'user', content: stripDataUriImagesFromMarkdown(m.text) })
         } else {
-          h.push({ role: 'assistant', content: m.text })
+          h.push({
+            role: 'assistant',
+            content: compactImgPlaceholdersForHistory(stripDataUriImagesFromMarkdown(m.text)),
+          })
         }
       }
       return h
@@ -120,17 +129,7 @@ function ChatIA360({ userData, token, servicio, onTokenRenewed }: ChatIA360Props
         setInfoLine(buildInfoLine(userData))
       }
       try {
-        const hist = await getIa360Historial(token, 500, ia360Renewal)
-        if (cancelled) return
-        if (hist.length > 0) {
-          const mapped: Message[] = hist.map((m, i) => ({
-            id: `h-${i}-${m.creado_en ?? ''}`,
-            text: m.contenido,
-            sender: m.rol === 'usuario' ? 'user' : 'isa',
-            timestamp: m.creado_en ? new Date(m.creado_en) : new Date(),
-          }))
-          setMessages(mapped)
-        } else {
+        if (getIa360SkipHistorial()) {
           const msgServicio = servicio.trim()
           if (msgServicio) {
             const t = Date.now()
@@ -162,6 +161,50 @@ function ChatIA360({ userData, token, servicio, onTokenRenewed }: ChatIA360Props
           } else {
             setMessages([])
           }
+        } else {
+          const hist = await getIa360Historial(token, 500, ia360Renewal)
+          if (cancelled) return
+          if (hist.length > 0) {
+            const mapped: Message[] = hist.map((m, i) => ({
+              id: `h-${i}-${m.creado_en ?? ''}`,
+              text: m.contenido,
+              sender: m.rol === 'usuario' ? 'user' : 'isa',
+              timestamp: m.creado_en ? new Date(m.creado_en) : new Date(),
+            }))
+            setMessages(mapped)
+          } else {
+            const msgServicio = servicio.trim()
+            if (msgServicio) {
+              const t = Date.now()
+              setMessages([
+                {
+                  id: `u-svc-${t}`,
+                  text: msgServicio,
+                  sender: 'user',
+                  timestamp: new Date(),
+                },
+              ])
+              try {
+                await guardarIa360MensajeDoc({
+                  token,
+                  rol: 'usuario',
+                  contenido: msgServicio,
+                  servicio: servicio.trim() || undefined,
+                  onTokenRenewed,
+                })
+              } catch (err) {
+                if (!cancelled) {
+                  setError(
+                    err instanceof Error
+                      ? `${err.message} (El mensaje se muestra en pantalla; revise conexión o CRM.)`
+                      : 'No se pudo guardar el servicio en el CRM'
+                  )
+                }
+              }
+            } else {
+              setMessages([])
+            }
+          }
         }
       } catch (e) {
         if (!cancelled) {
@@ -190,7 +233,7 @@ function ChatIA360({ userData, token, servicio, onTokenRenewed }: ChatIA360Props
     setError(null)
     try {
       const historyBefore = buildHistoryForApi([...messages, userMsg])
-      const { reply } = await enviarIa360DocChat({
+      const { reply, ia360Images } = await enviarIa360DocChat({
         token: tokenRef.current,
         message: trimmed,
         history: historyBefore,
@@ -204,6 +247,7 @@ function ChatIA360({ userData, token, servicio, onTokenRenewed }: ChatIA360Props
           text: reply,
           sender: 'isa',
           timestamp: new Date(),
+          ...(ia360Images && Object.keys(ia360Images).length > 0 ? { ia360Images } : {}),
         },
       ])
     } catch (e) {
@@ -235,7 +279,9 @@ function ChatIA360({ userData, token, servicio, onTokenRenewed }: ChatIA360Props
               <div className="message-content">
                 <div className="message-text">
                   {message.sender === 'isa' ? (
-                    <Ia360Markdown text={message.text} />
+                    <Ia360Markdown
+                      text={mergeIa360ImagePlaceholders(message.text, message.ia360Images)}
+                    />
                   ) : (
                     <span style={{ whiteSpace: 'pre-wrap' }}>{message.text}</span>
                   )}
@@ -249,6 +295,27 @@ function ChatIA360({ userData, token, servicio, onTokenRenewed }: ChatIA360Props
               </div>
             </div>
           ))}
+        {!cargando && enviando && (
+          <div className="message message-isa chat-ia360-typing-wrap" aria-live="polite">
+            <div
+              className="message-content"
+              role="status"
+              aria-busy="true"
+              aria-label="Estoy consultando la información para darte una solución "
+            >
+              <div className="chat-ia360-typing">
+                <span className="chat-ia360-typing-label">
+                  Estoy consultando la información para ayudarte mejor
+                </span>
+                <span className="chat-ia360-typing-dots" aria-hidden>
+                  <span />
+                  <span />
+                  <span />
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
         <div style={{ clear: 'both' }} />
         <div ref={messagesEndRef} className="chat-ia360-scroll-anchor" aria-hidden />
       </div>

@@ -5,11 +5,13 @@
   word-break: break-word;
 }
 
-.chat-ia360-markdown p {
+.chat-ia360-markdown p,
+.chat-ia360-markdown .chat-ia360-md-p {
   margin: 0 0 0.65em 0;
 }
 
-.chat-ia360-markdown p:last-child {
+.chat-ia360-markdown p:last-child,
+.chat-ia360-markdown .chat-ia360-md-p:last-child {
   margin-bottom: 0;
 }
 
@@ -77,9 +79,65 @@
   box-shadow: none;
 }
 
+.chat-ia360-md-img-tap {
+  display: block;
+  width: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: zoom-in;
+  border-radius: 0;
+  text-align: left;
+}
+
+.chat-ia360-md-img-tap:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.chat-ia360-md-img-tap:disabled {
+  cursor: default;
+}
+
+.chat-ia360-md-img-tap .chat-ia360-md-img {
+  margin: 0;
+  vertical-align: top;
+}
+
+.chat-ia360-md-img-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-top: 6px;
+}
+
+.chat-ia360-md-img-action-btn {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #2563eb;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.chat-ia360-md-img-action-btn:hover:not(:disabled) {
+  color: #1d4ed8;
+}
+
+.chat-ia360-md-img-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
 .chat-ia360-md-img-full-link {
   display: inline-block;
-  margin-top: 6px;
   font-size: 12px;
   font-weight: 500;
   color: #2563eb;
@@ -88,6 +146,28 @@
 
 .chat-ia360-md-img-full-link:hover {
   text-decoration: underline;
+}
+
+.chat-ia360-md-img-broken {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  font-size: 13px;
+  color: #7f1d1d;
+}
+
+.chat-ia360-md-img-broken-alt {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.chat-ia360-md-img-broken-hint {
+  display: block;
+  color: #991b1b;
+  line-height: 1.45;
+  margin-bottom: 8px;
 }
 
 /* Imagen dentro del área con scroll */
@@ -131,4 +211,60 @@
 .chat-ia360-markdown td {
   border: 1px solid #e2e8f0;
   padding: 6px 8px;
+}
+
+/* Vista ampliada (lightbox) — portal a body para no recortar por overflow del listado */
+.chat-ia360-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 16px 16px;
+  box-sizing: border-box;
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(2px);
+}
+
+.chat-ia360-lightbox-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 26px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.chat-ia360-lightbox-close:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.chat-ia360-lightbox-inner {
+  max-width: min(96vw, 1400px);
+  max-height: 90vh;
+  overflow: auto;
+  border-radius: 8px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+}
+
+.chat-ia360-lightbox-img {
+  display: block;
+  max-width: 100%;
+  width: auto;
+  height: auto;
+  max-height: min(88vh, 1200px);
+  object-fit: contain;
+  margin: 0;
+  background: #fff;
 }

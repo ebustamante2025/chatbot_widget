@@ -89,6 +89,18 @@
   flex-direction: column;
   overflow: hidden;
   animation: slideUp 0.3s ease-out;
+  transition:
+    width 0.25s ease,
+    height 0.25s ease,
+    max-width 0.25s ease,
+    max-height 0.25s ease;
+}
+
+.chatbot-window--expanded {
+  width: min(40vw, 560px);
+  max-width: calc(100vw - 32px);
+  height: min(80vh, 720px);
+  max-height: calc(100vh - 32px);
 }
 
 /** Contenedor del chat IA360 dentro del widget (ocupa el alto bajo la cabecera) */
@@ -194,6 +206,33 @@
   background: rgba(255, 255, 255, 0.3);
 }
 
+.chatbot-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.chatbot-expand-button {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.chatbot-expand-button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
 .chatbot-header-panel .chatbot-header-content {
   gap: 6px;
 }
@@ -217,7 +256,14 @@
     bottom: 0;
     right: 0;
   }
-  
+
+  .chatbot-window--expanded {
+    width: 100vw;
+    height: 100vh;
+    max-width: none;
+    max-height: none;
+  }
+
   .chatbot-container {
     bottom: 0;
     right: 0;

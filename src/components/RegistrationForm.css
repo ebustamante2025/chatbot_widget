@@ -14,10 +14,36 @@
   position: relative;
 }
 
-.close-button-header {
+.registration-form-header-actions {
   position: absolute;
   top: 8px;
   right: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 10;
+}
+
+.expand-button-header {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+  padding: 0;
+}
+
+.expand-button-header:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.close-button-header {
   background: rgba(255, 255, 255, 0.2);
   border: none;
   color: white;
@@ -31,7 +57,6 @@
   align-items: center;
   justify-content: center;
   transition: background 0.2s ease;
-  z-index: 10;
 }
 
 .close-button-header:hover {

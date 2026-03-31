@@ -20,7 +20,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 1000
   },
   server: {
-    port: 3002,
+    port: 3003,
     strictPort: true,
     host: true, // Permite acceso desde fuera del contenedor
     proxy: {

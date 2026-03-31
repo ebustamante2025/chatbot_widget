@@ -1,3 +1,13 @@
+import {
+  countDataImageBlocksInMarkdown,
+  extractHttpsImageUrlsFromMarkdown,
+  logIa360ImageConsole,
+} from '../utils/ia360ImageConsole';
+import {
+  compactImgPlaceholdersForHistory,
+  stripDataUriImagesFromMarkdown,
+} from '../utils/ia360HistorySanitize';
+
 //const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3004/api';
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
 /** URL base del backend en runtime (query ?apiBaseUrl= o window.IsaWidgetConfig.apiBaseUrl). Si se define, tiene prioridad sobre la de build. */
@@ -16,6 +26,43 @@ function getRuntimeApiBaseUrl(): string | null {
   const fromConfig = (window as unknown as { IsaWidgetConfig?: { apiBaseUrl?: string } }).IsaWidgetConfig?.apiBaseUrl;
   if (fromConfig !== undefined) return fromConfig;
   return null;
+}
+
+/**
+ * Si es true, no se llama GET /ia360-doc/historial al abrir IA360 (solo sesión actual).
+ * Prioridad: 1) query ?ia360SkipHistorial= (el loader del iframe la añade desde IsaWidgetConfig), 2) IsaWidgetConfig en la misma ventana, 3) VITE_IA360_SKIP_HISTORIAL en build.
+ */
+export function getIa360SkipHistorial(): boolean {
+  if (typeof window !== 'undefined') {
+    const params = new URLSearchParams(window.location.search);
+    const q = params.get('ia360SkipHistorial');
+    if (q === '1' || q === 'true' || q === 'yes') return true;
+    if (q === '0' || q === 'false' || q === 'no') return false;
+
+    const cfg = (window as unknown as { IsaWidgetConfig?: { ia360SkipHistorial?: boolean | string } })
+      .IsaWidgetConfig?.ia360SkipHistorial;
+    if (cfg === true || cfg === 'true' || cfg === '1') return true;
+    if (cfg === false || cfg === 'false' || cfg === '0') return false;
+  }
+  return (
+    import.meta.env.VITE_IA360_SKIP_HISTORIAL === 'true' ||
+    import.meta.env.VITE_IA360_SKIP_HISTORIAL === '1'
+  );
+}
+
+function shouldLogIa360ChatLatency(): boolean {
+  return (
+    Boolean(import.meta.env.DEV) ||
+    import.meta.env.VITE_IA360_LOG_CHAT_MS === 'true' ||
+    import.meta.env.VITE_IA360_LOG_CHAT_MS === '1'
+  );
+}
+
+/** Consola: ms desde el POST hasta tener la respuesta (incluye renovación JWT si aplica). */
+function logIa360ChatResponseMs(t0: number, detail: Record<string, unknown>): void {
+  if (!shouldLogIa360ChatLatency()) return;
+  const ms = Math.round(performance.now() - t0);
+  console.info(`[IA360] tiempo hasta respuesta: ${ms} ms`, detail);
 }
 
 // URL base del backend (sin /api) para health y WebSocket.
@@ -614,41 +661,99 @@ export async function enviarIa360DocChat(params: {
   history: Array<{ role: 'user' | 'assistant'; content: string }>;
   servicio?: string;
   onTokenRenewed?: (newToken: string) => void;
-}): Promise<{ reply: string; warning?: string }> {
+}): Promise<{ reply: string; warning?: string; ia360Images?: Record<string, string> }> {
+  const t0 = performance.now();
   const base = getApiBaseForIa360().replace(/\/$/, '');
   const url = `${base}/ia360-doc/chat`;
-  const buildBody = (tok: string) => {
-    const body: Record<string, unknown> = {
-      token: tok,
-      message: params.message.trim(),
-      history: params.history,
+
+  logIa360ImageConsole('chat: consulta iniciada', {
+    endpoint: url,
+    mensaje: params.message.trim().slice(0, 200),
+    historialMensajes: params.history.length,
+  });
+  try {
+    const historyForApi = params.history.map((h) => ({
+      role: h.role,
+      content:
+        h.role === 'assistant'
+          ? compactImgPlaceholdersForHistory(stripDataUriImagesFromMarkdown(h.content))
+          : stripDataUriImagesFromMarkdown(h.content),
+    }));
+    const buildBody = (tok: string) => {
+      const body: Record<string, unknown> = {
+        token: tok,
+        message: params.message.trim(),
+        history: historyForApi,
+      };
+      if (params.servicio?.trim()) body.servicio = params.servicio.trim();
+      return body;
     };
-    if (params.servicio?.trim()) body.servicio = params.servicio.trim();
-    return body;
-  };
-  const post = async (tok: string) =>
-    fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(buildBody(tok)),
-    });
-  let res = await post(params.token);
-  if (res.status === 401 && params.onTokenRenewed) {
-    const nt = await renewFaqAccessToken(params.token, params.servicio);
-    if (nt) {
-      params.onTokenRenewed(nt);
-      res = await post(nt);
+    const post = async (tok: string) =>
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify(buildBody(tok)),
+      });
+    let res = await post(params.token);
+    if (res.status === 401 && params.onTokenRenewed) {
+      const nt = await renewFaqAccessToken(params.token, params.servicio);
+      if (nt) {
+        params.onTokenRenewed(nt);
+        res = await post(nt);
+      }
     }
+    const data = (await res.json()) as {
+      success?: boolean;
+      reply?: string;
+      message?: string;
+      warning?: string;
+      ia360Images?: Record<string, string>;
+    };
+    if (!res.ok || !data?.success) {
+      throw new Error(data?.message || `Error ${res.status}`);
+    }
+    const reply = typeof data.reply === 'string' ? data.reply : '';
+    const ia360Images =
+      data.ia360Images && typeof data.ia360Images === 'object' ? data.ia360Images : undefined;
+    const linksHttps = extractHttpsImageUrlsFromMarkdown(reply);
+    const nData = countDataImageBlocksInMarkdown(reply);
+    const nImgKeys = ia360Images ? Object.keys(ia360Images).length : 0;
+    logIa360ImageConsole('chat: respuesta recibida', {
+      ok: true,
+      warning: data.warning ?? null,
+      imagenesHttpsEnReply: linksHttps.length,
+      imagenesDataUriEnReply: nData,
+      clavesIa360Images: nImgKeys,
+    });
+    linksHttps.forEach((link, i) => {
+      logIa360ImageConsole(`chat: link imagen [${i + 1}/${linksHttps.length}]`, { link });
+    });
+    if (nData > 0) {
+      logIa360ImageConsole('chat: imágenes inline (data:) en reply', {
+        cantidad: nData,
+        nota: 'El enlace original era https; el API ya devolvió base64 en el markdown.',
+      });
+    }
+    if (nImgKeys > 0) {
+      logIa360ImageConsole('chat: mapa ia360Images (Agente01-style)', {
+        cantidad: nImgKeys,
+        nota: 'El markdown usa IMG:XXXX; el mapa trae data: o URL por clave.',
+      });
+    }
+    logIa360ChatResponseMs(t0, {
+      exito: true,
+      caracteresReply: reply.length,
+      imagenesHttps: linksHttps.length,
+      imagenesDataUri: nData,
+      ia360ImageKeys: nImgKeys,
+    });
+    return { reply, warning: data.warning, ia360Images };
+  } catch (e) {
+    logIa360ChatResponseMs(t0, {
+      exito: false,
+      error: e instanceof Error ? e.message : String(e),
+    });
+    throw e;
   }
-  const data = (await res.json()) as {
-    success?: boolean;
-    reply?: string;
-    message?: string;
-    warning?: string;
-  };
-  if (!res.ok || !data?.success) {
-    throw new Error(data?.message || `Error ${res.status}`);
-  }
-  const reply = typeof data.reply === 'string' ? data.reply : '';
-  return { reply, warning: data.warning };
 }
+

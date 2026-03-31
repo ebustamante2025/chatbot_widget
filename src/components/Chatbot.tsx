@@ -62,8 +62,44 @@ type ViewAfterRegistration = 'panel' | 'isa' | 'faq' | 'agente' | 'ia360'
 const IA360_USE_WIDGET =
   import.meta.env.VITE_IA360_USE_WIDGET !== 'false' && import.meta.env.VITE_IA360_USE_WIDGET !== '0'
 
+function ChatExpandToggleButton({
+  expanded,
+  onToggle,
+}: {
+  expanded: boolean
+  onToggle: () => void
+}) {
+  return (
+    <button
+      type="button"
+      className="chatbot-expand-button"
+      onClick={onToggle}
+      aria-expanded={expanded}
+      aria-label={expanded ? 'Restaurar tamaño del chat' : 'Ampliar ventana del chat'}
+      title={expanded ? 'Restaurar tamaño' : 'Ampliar'}
+    >
+      {expanded ? (
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M4 10V4h6v2H6v4H4zm16-6h-6v2h4v4h2V4zM4 20v-6h2v4h4v2H4zm12-6v6h2v-6h-4v2z"
+          />
+        </svg>
+      ) : (
+        <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path
+            fill="currentColor"
+            d="M10 4H4v6h2V6h4V4zm10 0v2h4v4h2V4h-6zM4 14v6h6v-2H6v-4H4zm14 0v4h-4v2h6v-6h-2z"
+          />
+        </svg>
+      )}
+    </button>
+  )
+}
+
 function Chatbot() {
   const [isOpen, setIsOpen] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
   const [isRegistered, setIsRegistered] = useState(false)
   const [userData, setUserData] = useState<UserData | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
@@ -93,10 +129,19 @@ function Chatbot() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!isOpen) setIsExpanded(false)
+  }, [isOpen])
+
   // En iframe (loader externo): avisar al padre el tamaño para no tapar toda la página cuando el chat está cerrado
   useEffect(() => {
-    postWidgetFrameResize({ open: isOpen, registered: isRegistered, view })
-  }, [isOpen, isRegistered, view])
+    postWidgetFrameResize({
+      open: isOpen,
+      registered: isRegistered,
+      view,
+      expanded: isExpanded && isOpen,
+    })
+  }, [isOpen, isRegistered, view, isExpanded])
 
   const handleRegistration = (data: UserData) => {
     setUserData(data)
@@ -294,11 +339,17 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
   return (
     <div className="chatbot-container">
       {isOpen ? (
-        <div className="chatbot-window">
+        <div
+          className={
+            isExpanded ? 'chatbot-window chatbot-window--expanded' : 'chatbot-window'
+          }
+        >
           {!isRegistered ? (
-            <RegistrationForm 
+            <RegistrationForm
               onSubmit={handleRegistration}
               onClose={() => setIsOpen(false)}
+              expanded={isExpanded}
+              onToggleExpand={() => setIsExpanded((v) => !v)}
             />
           ) : view === 'panel' ? (
             <>
@@ -307,13 +358,19 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
                   <h3>Menú</h3>
                   <span className="status-indicator"></span>
                 </div>
-                <button 
-                  className="close-button"
-                  onClick={() => setIsOpen(false)}
-                  aria-label="Cerrar chat"
-                >
-                  ×
-                </button>
+                <div className="chatbot-header-actions">
+                  <ChatExpandToggleButton
+                    expanded={isExpanded}
+                    onToggle={() => setIsExpanded((v) => !v)}
+                  />
+                  <button
+                    className="close-button"
+                    onClick={() => setIsOpen(false)}
+                    aria-label="Cerrar chat"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
               <WelcomePanel
                 userData={userData!}
@@ -417,13 +474,19 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
                 <div className="chatbot-header-content">
                   <h3>Preguntas frecuentes</h3>
                 </div>
-                <button 
-                  className="close-button"
-                  onClick={() => setIsOpen(false)}
-                  aria-label="Cerrar chat"
-                >
-                  ×
-                </button>
+                <div className="chatbot-header-actions">
+                  <ChatExpandToggleButton
+                    expanded={isExpanded}
+                    onToggle={() => setIsExpanded((v) => !v)}
+                  />
+                  <button
+                    className="close-button"
+                    onClick={() => setIsOpen(false)}
+                    aria-label="Cerrar chat"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
               <PreguntasFrecuentes onBack={() => setView('panel')} />
             </>
@@ -433,13 +496,19 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
                 <div className="chatbot-header-content">
                   <h3>Chatear con agente</h3>
                 </div>
-                <button 
-                  className="close-button"
-                  onClick={() => setIsOpen(false)}
-                  aria-label="Cerrar chat"
-                >
-                  ×
-                </button>
+                <div className="chatbot-header-actions">
+                  <ChatExpandToggleButton
+                    expanded={isExpanded}
+                    onToggle={() => setIsExpanded((v) => !v)}
+                  />
+                  <button
+                    className="close-button"
+                    onClick={() => setIsOpen(false)}
+                    aria-label="Cerrar chat"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
               <ChatAgente
                 userData={userData!}
@@ -468,13 +537,19 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
                   </button>
                   <h3>IA360 · documentación</h3>
                 </div>
-                <button
-                  className="close-button"
-                  onClick={() => setIsOpen(false)}
-                  aria-label="Cerrar chat"
-                >
-                  ×
-                </button>
+                <div className="chatbot-header-actions">
+                  <ChatExpandToggleButton
+                    expanded={isExpanded}
+                    onToggle={() => setIsExpanded((v) => !v)}
+                  />
+                  <button
+                    className="close-button"
+                    onClick={() => setIsOpen(false)}
+                    aria-label="Cerrar chat"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
               <div className="chatbot-ia360-body">
                 <ChatIA360
@@ -497,13 +572,19 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
                     <span className="status-indicator">En línea</span>
                   </div>
                 </div>
-                <button 
-                  className="close-button"
-                  onClick={() => setIsOpen(false)}
-                  aria-label="Cerrar chat"
-                >
-                  ×
-                </button>
+                <div className="chatbot-header-actions">
+                  <ChatExpandToggleButton
+                    expanded={isExpanded}
+                    onToggle={() => setIsExpanded((v) => !v)}
+                  />
+                  <button
+                    className="close-button"
+                    onClick={() => setIsOpen(false)}
+                    aria-label="Cerrar chat"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
               <MessageList messages={messages} />
               <MessageInput onSendMessage={handleSendMessage} disabled={isSending} />

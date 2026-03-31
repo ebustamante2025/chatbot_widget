@@ -23,9 +23,11 @@ type ConnectionStatus = 'checking' | 'ok' | 'unreachable' | 'database_error'
 interface RegistrationFormProps {
   onSubmit: (data: UserData) => void
   onClose?: () => void
+  expanded?: boolean
+  onToggleExpand?: () => void
 }
 
-function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
+function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: RegistrationFormProps) {
   const [step, setStep] = useState<'nit' | 'director' | 'licencia'>('nit')
   const [nit, setNit] = useState('')
   const [directorNombre, setDirectorNombre] = useState('')
@@ -260,14 +262,44 @@ function RegistrationForm({ onSubmit, onClose }: RegistrationFormProps) {
   return (
     <div className="registration-form-container">
       <div className="registration-form-header">
-        {onClose && (
-          <button 
-            className="close-button-header"
-            onClick={onClose}
-            aria-label="Cerrar chat"
-          >
-            ×
-          </button>
+        {(onToggleExpand || onClose) && (
+          <div className="registration-form-header-actions">
+            {onToggleExpand && (
+              <button
+                type="button"
+                className="expand-button-header"
+                onClick={onToggleExpand}
+                aria-expanded={expanded}
+                aria-label={expanded ? 'Restaurar tamaño del chat' : 'Ampliar ventana del chat'}
+                title={expanded ? 'Restaurar tamaño' : 'Ampliar'}
+              >
+                {expanded ? (
+                  <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M4 10V4h6v2H6v4H4zm16-6h-6v2h4v4h2V4zM4 20v-6h2v4h4v2H4zm12-6v6h2v-6h-4v2z"
+                    />
+                  </svg>
+                ) : (
+                  <svg width="16" height="16" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path
+                      fill="currentColor"
+                      d="M10 4H4v6h2V6h4V4zm10 0v2h4v4h2V4h-6zM4 14v6h6v-2H6v-4H4zm14 0v4h-4v2h6v-6h-2z"
+                    />
+                  </svg>
+                )}
+              </button>
+            )}
+            {onClose && (
+              <button
+                className="close-button-header"
+                onClick={onClose}
+                aria-label="Cerrar chat"
+              >
+                ×
+              </button>
+            )}
+          </div>
         )}
         <h3>Registro</h3>
       </div>

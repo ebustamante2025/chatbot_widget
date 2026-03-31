@@ -43,9 +43,17 @@
         var iframe = document.createElement('iframe');
         iframe.id = 'isa-chatbot-widget';
         var widgetSrc = config.widgetUrl;
+        var qs = [];
         if (config.apiBaseUrl !== undefined && config.apiBaseUrl !== '') {
+            qs.push('apiBaseUrl=' + encodeURIComponent(config.apiBaseUrl));
+        }
+        var skipHist = config.ia360SkipHistorial;
+        if (skipHist === true || skipHist === 'true' || skipHist === '1' || skipHist === 1) {
+            qs.push('ia360SkipHistorial=1');
+        }
+        if (qs.length > 0) {
             var sep = widgetSrc.indexOf('?') >= 0 ? '&' : '?';
-            iframe.src = widgetSrc + sep + 'apiBaseUrl=' + encodeURIComponent(config.apiBaseUrl);
+            iframe.src = widgetSrc + sep + qs.join('&');
         } else {
             iframe.src = widgetSrc;
         }

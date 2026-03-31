@@ -3,6 +3,8 @@ export interface Message {
   text: string
   sender: 'user' | 'isa'
   timestamp: Date
+  /** Mapa IMG:0001 → data: o https del último POST /ia360-doc/chat (solo mensajes del asistente en vivo). */
+  ia360Images?: Record<string, string>
 }
 
 export interface UserData {
