@@ -36,9 +36,9 @@ Así funciona el chat de punta a punta:
 
 - Tras el registro se muestra un **panel** con tres opciones:
   - **Preguntas frecuentes**: lista de preguntas y respuestas (solo lectura).
-  - **Chatear con Isa**: abre el chat con el asistente virtual.
+  - **Hablar con Isa**: abre el chat con el asistente virtual.
   - **Chatear con un agente**: pantalla de “en cola” para atención humana (placeholder).
-- El usuario elige **“Chatear con Isa”** para hablar con el bot.
+- El usuario elige **“Hablar con Isa”** para hablar con el bot.
 
 ### Paso 4: Chat con Isa (flujo de cada mensaje)
 

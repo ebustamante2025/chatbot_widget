@@ -25,11 +25,11 @@ export default defineConfig({
     host: true, // Permite acceso desde fuera del contenedor
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3004',
+        target: 'http://127.0.0.1:3005',
         changeOrigin: true,
       },
       '/socket.io': {
-        target: 'http://127.0.0.1:3004',
+        target: 'http://127.0.0.1:3005',
         changeOrigin: true,
         ws: true,
         secure: false,

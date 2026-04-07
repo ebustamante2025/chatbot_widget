@@ -21,6 +21,7 @@ import './Chatbot.css'
 
 const STORAGE_KEY_USER = 'isa_widget_user'
 const AGENT_NAME = 'Isa'
+const TOGGLE_LABEL = 'Habla con Isa'
 
 function loadStoredUser(): UserData | null {
   try {
@@ -167,7 +168,7 @@ function Chatbot() {
     setIsRegistered(true)
     saveStoredUser(data)
     setView('panel')
-    // Mensaje de bienvenida para cuando entre a chatear con Isa
+    // Mensaje de bienvenida para cuando entre a hablar con Isa
     const welcomeMessage: Message = {
       id: '1',
       text: `¡Hola ${data.funcionario} de ${data.empresa}! 👋
@@ -614,11 +615,10 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
         <button 
           className="chatbot-toggle"
           onClick={() => setIsOpen(true)}
-          aria-label="Chatea con Isa"
-          title="Chatea con Isa"
+          aria-label={TOGGLE_LABEL}
         >
           <ChatIcon />
-          <span className="chatbot-toggle-text">{AGENT_NAME}</span>
+          <span className="chatbot-toggle-text">{TOGGLE_LABEL}</span>
         </button>
       )}
     </div>

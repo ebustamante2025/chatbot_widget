@@ -55,18 +55,18 @@
 .welcome-panel-options {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .welcome-panel-option {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
-  padding: 10px 12px;
+  gap: 1px;
+  padding: 6px 10px;
   background: white;
   border: 1px solid #e0e0e0;
-  border-radius: 10px;
+  border-radius: 8px;
   cursor: pointer;
   text-align: left;
   transition: all 0.2s ease;
@@ -97,30 +97,32 @@
 
 .welcome-panel-option-icon,
 .welcome-panel-option-avatar {
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
 }
 
 .welcome-panel-option-avatar {
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .welcome-panel-option-avatar .chat-icon {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
 }
 
 .welcome-panel-option-label {
   font-size: 12px;
   font-weight: 700;
   color: #001689;
+  line-height: 1.25;
 }
 
 .welcome-panel-option-desc {
   font-size: 11px;
   color: #666;
+  line-height: 1.3;
 }

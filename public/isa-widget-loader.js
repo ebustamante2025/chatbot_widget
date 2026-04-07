@@ -1,8 +1,23 @@
 /**
- * Script de carga dinámica para el Widget Chatbot Isa
- * 
- * Uso: Agrega este script antes del cierre de </body> en tu CRM
- * <script src="https://tudominio.com/widget-chatbot/isa-widget-loader.js"></script>
+ * Integración del widget en cualquier página (iframe + postMessage: resize, lightbox IA360).
+ *
+ * En tu HTML (antes de cargar este archivo):
+ *   <script>
+ *     window.IsaWidgetConfig = {
+ *       widgetUrl: 'https://tudominio.com/',   // URL del build del widget (Vite)
+ *       apiBaseUrl: 'https://api.tudominio.com', // opcional: backend API + socket (query ?apiBaseUrl=)
+ *       position: 'bottom-right',
+ *       zIndex: 9999,
+ *       edgeOffset: 20,
+ *       closedWidth: 200,
+ *       closedHeight: 56,
+ *       ia360SkipHistorial: false,
+ *       iframeChrome: true   // opcional: borde/sombra del iframe (por defecto van ocultos)
+ *     };
+ *   </script>
+ *   <script src="https://tudominio.com/isa-widget-loader.js"></script>
+ *
+ * Desarrollo local: widgetUrl 'http://localhost:3003/' y este script desde el mismo origen.
  */
 
 (function() {
@@ -22,11 +37,14 @@
         position: window.IsaWidgetConfig?.position || 'bottom-right', // 'bottom-right' | 'bottom-left'
         zIndex: window.IsaWidgetConfig?.zIndex || 9999,
         // Tamaño máximo cuando el chat está abierto (el iframe se achica solo al cerrar vía postMessage)
-        width: window.IsaWidgetConfig?.width || 400,
-        height: window.IsaWidgetConfig?.height || 650,
-        closedWidth: window.IsaWidgetConfig?.closedWidth || 280,
-        closedHeight: window.IsaWidgetConfig?.closedHeight || 96,
-        edgeOffset: window.IsaWidgetConfig?.edgeOffset || 20
+        width: window.IsaWidgetConfig?.width || 350,
+        height: window.IsaWidgetConfig?.height || 520,
+        closedWidth: window.IsaWidgetConfig?.closedWidth || 200,
+        closedHeight: window.IsaWidgetConfig?.closedHeight || 56,
+        edgeOffset: window.IsaWidgetConfig?.edgeOffset || 20,
+        referrerPolicy: window.IsaWidgetConfig?.referrerPolicy || 'no-referrer-when-downgrade',
+        /** Por defecto sin borde ni sombra en el iframe (solo el botón). true = marco visible */
+        iframeChrome: window.IsaWidgetConfig?.iframeChrome === true
     };
     
     var config = Object.assign({}, defaultConfig, window.IsaWidgetConfig || {});
@@ -57,10 +75,14 @@
         } else {
             iframe.src = widgetSrc;
         }
-        iframe.title = 'Chatbot Isa';
-        iframe.setAttribute('allow', 'microphone');
+        iframe.title = window.IsaWidgetConfig?.iframeTitle || 'Chatbot Isa';
+        iframe.setAttribute('allow', 'microphone; camera');
         iframe.setAttribute('frameborder', '0');
         iframe.setAttribute('scrolling', 'no');
+        iframe.setAttribute('loading', 'lazy');
+        if (config.referrerPolicy) {
+            iframe.setAttribute('referrerpolicy', config.referrerPolicy);
+        }
         iframe.style.cssText = getWidgetStyles();
         
         // Agregar al body
@@ -202,21 +224,30 @@
     function getWidgetStyles() {
         var isRight = config.position === 'bottom-right';
         var off = (typeof config.edgeOffset === 'number' ? config.edgeOffset : 20) + 'px';
-        var cw = config.closedWidth || 280;
-        var ch = config.closedHeight || 96;
+        var cw = config.closedWidth || 200;
+        var ch = config.closedHeight || 56;
+        var chrome = config.iframeChrome !== false;
+        /* Borde corporativo + trazo neutro: se nota en fondo blanco y en gris; sombras suaves en capas */
+        var border = chrome
+            ? '1px solid rgba(0, 22, 137, 0.26)'
+            : 'none';
+        var shadow = chrome
+            ? '0 0 0 1px rgba(0, 0, 0, 0.06), 0 4px 14px rgba(0, 22, 137, 0.14), 0 14px 40px rgba(0, 0, 0, 0.12)'
+            : 'none';
         var styles = [
             'position: fixed',
             isRight ? 'right: ' + off : 'left: ' + off,
             'bottom: ' + off,
             'width: ' + cw + 'px',
             'height: ' + ch + 'px',
-            'border: none',
+            'border: ' + border,
             'z-index: ' + config.zIndex,
-            'box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18)',
+            'box-shadow: ' + shadow,
             'border-radius: 16px',
             'transition: none',
             'background: transparent',
-            'overflow: hidden'
+            'overflow: hidden',
+            'box-sizing: border-box'
         ];
         return styles.join('; ');
     }

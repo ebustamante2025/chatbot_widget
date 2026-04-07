@@ -8,6 +8,11 @@
   overflow: hidden;
 }
 
+/* Iframe cerrado: sin mancha detrás del botón */
+.isa-widget--iframe .app-container {
+  background: transparent;
+}
+
 /* En iframe el padre define altura; en ventana sola, ocupar viewport */
 @media (max-width: 768px) {
   .app-container {

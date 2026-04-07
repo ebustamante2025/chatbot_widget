@@ -10,6 +10,17 @@
 .isa-widget--iframe .chatbot-container {
   bottom: 0;
   right: 0;
+  background: transparent;
+}
+
+.isa-widget--iframe .chatbot-container .chatbot-toggle {
+  margin-left: auto;
+  border: none;
+  box-shadow: 0 4px 18px rgba(0, 22, 137, 0.4);
+}
+
+.isa-widget--iframe .chatbot-container .chatbot-toggle:hover {
+  box-shadow: 0 6px 22px rgba(0, 22, 137, 0.5);
 }
 
 .chatbot-toggle {
@@ -19,10 +30,12 @@
   padding: 10px 12px;
   background: #001689;
   color: white;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 50px;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(0, 22, 137, 0.4);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.12),
+    0 4px 18px rgba(0, 22, 137, 0.38);
   transition: all 0.3s ease;
   font-size: 13px;
   font-weight: 600;
@@ -32,47 +45,35 @@
 
 .chatbot-toggle:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 25px rgba(0, 22, 137, 0.5);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.14),
+    0 6px 24px rgba(0, 22, 137, 0.48);
 }
 
-.chatbot-toggle::before {
-  content: 'Chatea con Isa';
-  position: absolute;
-  bottom: calc(100% + 10px);
-  right: 0;
-  background: rgba(0, 0, 0, 0.9);
-  color: white;
-  padding: 8px 12px;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 500;
+/* Un solo texto al pasar el ratón (o foco teclado); sin tooltip nativo duplicado */
+.chatbot-toggle .chatbot-toggle-text {
+  display: inline-block;
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
   white-space: nowrap;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  transform: translateY(5px);
-  z-index: 10001;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition:
+    max-width 0.28s ease,
+    opacity 0.22s ease;
+  vertical-align: middle;
 }
 
-.chatbot-toggle::after {
-  content: '';
-  position: absolute;
-  bottom: calc(100% + 2px);
-  right: 20px;
-  border: 6px solid transparent;
-  border-top-color: rgba(0, 0, 0, 0.9);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.3s ease, transform 0.3s ease;
-  transform: translateY(5px);
-  z-index: 10001;
-}
-
-.chatbot-toggle:hover::before,
-.chatbot-toggle:hover::after {
+.chatbot-toggle:hover .chatbot-toggle-text,
+.chatbot-toggle:focus-visible .chatbot-toggle-text {
+  max-width: 18rem;
   opacity: 1;
-  transform: translateY(0);
+}
+
+@media (hover: none), (pointer: coarse) {
+  .chatbot-toggle .chatbot-toggle-text {
+    max-width: 18rem;
+    opacity: 1;
+  }
 }
 
 .chatbot-toggle:active {
@@ -86,8 +87,8 @@
 }
 
 .chatbot-window {
-  width: 320px;
-  height: 480px;
+  width: 350px;
+  height: 520px;
   background: white;
   border-radius: 16px;
   /* Borde + sombra: se distingue del fondo claro (p. ej. IA360 en iframe) */
@@ -113,9 +114,9 @@
 }
 
 .chatbot-window--expanded {
-  width: min(40vw, 560px);
+  width: min(50vw, 600px);
   max-width: calc(100vw - 32px);
-  height: min(80vh, 720px);
+  height: min(88vh, 780px);
   max-height: calc(100vh - 32px);
 }
 
@@ -164,7 +165,7 @@
 .chatbot-header {
   background: #001689;
   color: white;
-  padding: 12px 16px;
+  padding: 10px 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -196,14 +197,14 @@
 }
 
 .chatbot-avatar {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
   flex-shrink: 0;
 }
 
 .chatbot-header-info h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
 }
 

@@ -17,7 +17,7 @@ export type WidgetEmbedView = 'panel' | 'isa' | 'faq' | 'agente' | 'ia360'
 
 /**
  * Notifica al padre el tamaño deseado del iframe.
- * Cerrado: solo la burbuja (~260×88).
+ * Cerrado: botón (icono + «Hablar con Isa» al hover; ~200×56).
  * Abierto: ventana de chat/registro (limitado al viewport del iframe).
  */
 function getHostViewport(): { w: number; h: number } {
@@ -50,25 +50,25 @@ export function postWidgetFrameResize(params: {
   let height: number
 
   if (!open) {
-    width = 280
-    height = 96
+    /* Botón cerrado: cabe el texto al pasar el ratón (Hablar con Isa) */
+    width = 200
+    height = 56
   } else if (expanded) {
-    width = Math.min(560, Math.max(320, Math.round(refW * 0.4)))
+    width = Math.min(660, Math.max(350, Math.round(refW * 0.5)))
     width = Math.min(width, refW - 24)
-    height = Math.min(720, Math.max(440, Math.round(refH * 0.8)))
+    height = Math.min(800, Math.max(480, Math.round(refH * 0.88)))
     height = Math.min(height, refH - 24)
   } else if (!registered) {
-    // Mismas dimensiones que .chatbot-window (320×480): evita iframe más alto que la tarjeta.
-    const preferredW = 320
-    const preferredH = 480
-    width = Math.min(420, Math.max(320, preferredW), refW - 24)
-    height = Math.min(640, Math.max(360, preferredH), refH - 24)
+    const preferredW = 350
+    const preferredH = 520
+    width = Math.min(440, Math.max(330, preferredW), refW - 24)
+    height = Math.min(680, Math.max(400, preferredH), refH - 24)
   } else {
-    width = Math.min(400, Math.max(320, 336), refW - 24)
+    width = Math.min(440, Math.max(330, 350), refW - 24)
     if (view === 'agente' || view === 'isa') {
-      height = Math.min(580, Math.max(480, 540), refH - 24)
+      height = Math.min(620, Math.max(500, 560), refH - 24)
     } else {
-      height = Math.min(540, Math.max(480, 500), refH - 24)
+      height = Math.min(580, Math.max(480, 540), refH - 24)
     }
   }
 

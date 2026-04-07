@@ -52,12 +52,12 @@ function WelcomePanel({
           type="button"
           className="welcome-panel-option welcome-panel-option-agente-isa"
           onClick={onSelectChatearIsa}
-          aria-label="Chatear con Isa"
+          aria-label="Hablar con Isa"
         >
           <span className="welcome-panel-option-avatar">
             <ChatIcon />
           </span>
-          <span className="welcome-panel-option-label">Chatear con Isa</span>
+          <span className="welcome-panel-option-label">Hablar con Isa</span>
           <span className="welcome-panel-option-desc">Isa · Asistente virtual inteligente 24/7</span>
         </button>
         <button
