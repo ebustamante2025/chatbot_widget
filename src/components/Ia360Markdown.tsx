@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import ReactMarkdown, { defaultUrlTransform } from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -8,6 +8,7 @@ import {
   logIa360ImageConsole,
   resumirRutaImagen,
 } from '../utils/ia360ImageConsole'
+import { ISA_WIDGET_MESSAGE_SOURCE, isEmbeddedInIframe } from '../utils/widgetEmbed'
 
 /**
  * URLs largas o con paréntesis rompen `![alt](url)` en el parser; `![alt](<url>)` es válido en CommonMark.
@@ -19,12 +20,124 @@ function normalizeMarkdownImages(text: string): string {
   return t
 }
 
-type LightboxPayload = { src: string; alt: string }
+type LightboxPayload = { src: string; alt: string; originalSrc?: string }
 
-function Ia360ImageLightbox({ src, alt, onClose }: LightboxPayload & { onClose: () => void }) {
+function Ia360ImageLightbox({
+  src,
+  alt,
+  originalSrc,
+  onClose,
+}: LightboxPayload & { onClose: () => void }) {
   const closeBtnRef = useRef<HTMLButtonElement>(null)
+  const embedded = isEmbeddedInIframe()
+  /** Si true, el padre muestra la imagen a pantalla completa; si false dentro del iframe, portal local */
+  const [showPortal, setShowPortal] = useState(!embedded)
 
   useEffect(() => {
+    if (!embedded) {
+      setShowPortal(true)
+      return
+    }
+
+    let cancelled = false
+
+    const attachParentSync = () => {
+      const onMsg = (e: MessageEvent) => {
+        const d = e.data
+        if (d?.source === ISA_WIDGET_MESSAGE_SOURCE && d?.type === 'lightbox-sync-close') {
+          onClose()
+        }
+      }
+      window.addEventListener('message', onMsg)
+      return () => {
+        window.removeEventListener('message', onMsg)
+        window.parent.postMessage(
+          { source: ISA_WIDGET_MESSAGE_SOURCE, type: 'lightbox-close' },
+          '*'
+        )
+      }
+    }
+
+    const os = (originalSrc ?? '').trim()
+    const remoteUrl = /^https?:\/\//i.test(os) ? os : null
+    const inlineData = src.startsWith('data:image/') ? src : null
+
+    if (remoteUrl) {
+      setShowPortal(false)
+      window.parent.postMessage(
+        {
+          source: ISA_WIDGET_MESSAGE_SOURCE,
+          type: 'lightbox-open',
+          src: remoteUrl,
+          alt,
+        },
+        '*'
+      )
+      return attachParentSync()
+    }
+
+    if (inlineData) {
+      setShowPortal(false)
+      window.parent.postMessage(
+        {
+          source: ISA_WIDGET_MESSAGE_SOURCE,
+          type: 'lightbox-open',
+          src: inlineData,
+          alt,
+        },
+        '*'
+      )
+      return attachParentSync()
+    }
+
+    if (src.startsWith('blob:')) {
+      setShowPortal(false)
+      const onMsg = (e: MessageEvent) => {
+        const d = e.data
+        if (d?.source === ISA_WIDGET_MESSAGE_SOURCE && d?.type === 'lightbox-sync-close') {
+          onClose()
+        }
+      }
+      window.addEventListener('message', onMsg)
+
+      ;(async () => {
+        try {
+          const r = await fetch(src)
+          const mime = r.headers.get('content-type') || 'image/png'
+          const imageBuffer = await r.arrayBuffer()
+          if (cancelled) return
+          window.parent.postMessage(
+            {
+              source: ISA_WIDGET_MESSAGE_SOURCE,
+              type: 'lightbox-open-blob',
+              mime,
+              alt,
+              imageBuffer,
+            },
+            '*',
+            [imageBuffer]
+          )
+        } catch {
+          if (!cancelled) setShowPortal(true)
+        }
+      })()
+
+      return () => {
+        cancelled = true
+        window.removeEventListener('message', onMsg)
+        window.parent.postMessage(
+          { source: ISA_WIDGET_MESSAGE_SOURCE, type: 'lightbox-close' },
+          '*'
+        )
+      }
+    }
+
+    setShowPortal(true)
+    return undefined
+  }, [embedded, src, alt, originalSrc, onClose])
+
+  useEffect(() => {
+    if (!showPortal) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
     }
@@ -36,7 +149,11 @@ function Ia360ImageLightbox({ src, alt, onClose }: LightboxPayload & { onClose: 
       window.removeEventListener('keydown', onKey)
       document.body.style.overflow = prevOverflow
     }
-  }, [onClose])
+  }, [onClose, showPortal])
+
+  if (!showPortal) {
+    return null
+  }
 
   return createPortal(
     <div
@@ -205,7 +322,8 @@ function Ia360ProxiedImg({
     )
   }
 
-  const openLb = () => onOpenLightbox?.({ src: displaySrc, alt: alt ?? '' })
+  const openLb = () =>
+    onOpenLightbox?.({ src: displaySrc, alt: alt ?? '', originalSrc: originalSrc })
 
   return (
     <div className="chat-ia360-md-img-frame">
@@ -265,6 +383,7 @@ function Ia360Markdown({ text }: Ia360MarkdownProps) {
   const normalized = normalizeMarkdownImages(text)
   const [lightbox, setLightbox] = useState<LightboxPayload | null>(null)
   const openLightbox = (p: LightboxPayload) => setLightbox(p)
+  const closeLightbox = useCallback(() => setLightbox(null), [])
 
   return (
     <div className="chat-ia360-markdown">
@@ -272,7 +391,8 @@ function Ia360Markdown({ text }: Ia360MarkdownProps) {
         <Ia360ImageLightbox
           src={lightbox.src}
           alt={lightbox.alt}
-          onClose={() => setLightbox(null)}
+          originalSrc={lightbox.originalSrc}
+          onClose={closeLightbox}
         />
       ) : null}
       <ReactMarkdown
@@ -315,7 +435,7 @@ function Ia360Markdown({ text }: Ia360MarkdownProps) {
             const href = raw && /^https:\/\//i.test(raw) ? raw : undefined
             const lbSrc = src?.trim() ?? ''
             const openLb = () => {
-              if (lbSrc) openLightbox({ src: lbSrc, alt: alt ?? '' })
+              if (lbSrc) openLightbox({ src: lbSrc, alt: alt ?? '', originalSrc: href ?? lbSrc })
             }
             return (
               <div className="chat-ia360-md-img-frame">

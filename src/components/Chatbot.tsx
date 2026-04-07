@@ -16,7 +16,7 @@ import {
   obtenerTokenAccesoFAQ,
   verificarServicioFAQ,
 } from '../services/api'
-import { postWidgetFrameResize } from '../utils/widgetEmbed'
+import { isEmbeddedInIframe, postWidgetFrameResize } from '../utils/widgetEmbed'
 import './Chatbot.css'
 
 const STORAGE_KEY_USER = 'isa_widget_user'
@@ -132,6 +132,25 @@ function Chatbot() {
   useEffect(() => {
     if (!isOpen) setIsExpanded(false)
   }, [isOpen])
+
+  useEffect(() => {
+    if (!isEmbeddedInIframe()) return
+    document.documentElement.classList.add('isa-widget--iframe')
+    return () => {
+      document.documentElement.classList.remove('isa-widget--iframe')
+      document.documentElement.classList.remove('isa-widget--iframe-expanded')
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isEmbeddedInIframe()) return
+    const root = document.documentElement
+    if (isOpen && isExpanded) {
+      root.classList.add('isa-widget--iframe-expanded')
+    } else {
+      root.classList.remove('isa-widget--iframe-expanded')
+    }
+  }, [isOpen, isExpanded])
 
   // En iframe (loader externo): avisar al padre el tamaño para no tapar toda la página cuando el chat está cerrado
   useEffect(() => {

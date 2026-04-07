@@ -85,22 +85,114 @@
     }
     
     function setupIframeResizeListener(iframe) {
+        var hostImgLightbox = null;
+        var hostLbKeyHandler = null;
+        var hostLbBlobUrl = null;
+
+        function closeHostImageLightbox(syncToIframe) {
+            if (syncToIframe === undefined) syncToIframe = true;
+            if (hostLbBlobUrl) {
+                try {
+                    URL.revokeObjectURL(hostLbBlobUrl);
+                } catch (e) {}
+                hostLbBlobUrl = null;
+            }
+            var hadOverlay = !!hostImgLightbox;
+            if (hostLbKeyHandler) {
+                document.removeEventListener('keydown', hostLbKeyHandler);
+                hostLbKeyHandler = null;
+            }
+            if (hostImgLightbox) {
+                hostImgLightbox.remove();
+                hostImgLightbox = null;
+            }
+            if (hadOverlay && syncToIframe) {
+                var w = iframe.contentWindow;
+                var o = getWidgetOrigin();
+                if (w && o) {
+                    try {
+                        w.postMessage({ source: 'isa-widget-chat', type: 'lightbox-sync-close' }, o);
+                    } catch (e) {}
+                }
+            }
+        }
+
+        function openHostImageLightbox(src, alt, opts) {
+            if (!src || typeof src !== 'string') return;
+            closeHostImageLightbox(false);
+            if (opts && opts.revokeOnClose) {
+                hostLbBlobUrl = src;
+            }
+            var root = document.createElement('div');
+            root.id = 'isa-host-img-lightbox';
+            root.className = 'isa-host-img-lightbox';
+            root.setAttribute('role', 'dialog');
+            root.setAttribute('aria-modal', 'true');
+            var btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'isa-host-lb-close';
+            btn.setAttribute('aria-label', 'Cerrar');
+            btn.appendChild(document.createTextNode('\u00d7'));
+            btn.addEventListener('click', function() { closeHostImageLightbox(true); });
+            var inner = document.createElement('div');
+            inner.className = 'isa-host-lb-inner';
+            var img = document.createElement('img');
+            img.src = src;
+            img.alt = alt || '';
+            img.referrerPolicy = 'no-referrer';
+            inner.appendChild(img);
+            root.appendChild(btn);
+            root.appendChild(inner);
+            root.addEventListener('click', function(e) {
+                if (e.target === root) closeHostImageLightbox(true);
+            });
+            document.body.appendChild(root);
+            hostImgLightbox = root;
+            hostLbKeyHandler = function(e) {
+                if (e.key === 'Escape') closeHostImageLightbox(true);
+            };
+            document.addEventListener('keydown', hostLbKeyHandler);
+        }
+
         window.addEventListener('message', function(event) {
             var data = event.data;
-            if (!data || data.source !== 'isa-widget-chat' || data.type !== 'resize') return;
+            if (!data || data.source !== 'isa-widget-chat') return;
             var expectedOrigin = getWidgetOrigin();
-            if (expectedOrigin && event.origin !== expectedOrigin) return;
-            if (typeof data.width !== 'number' || typeof data.height !== 'number') return;
-            var w = Math.max(80, Math.round(data.width));
-            var h = Math.max(72, Math.round(data.height));
-            if (data.open) {
-                var vw = window.innerWidth || 1024;
-                var vh = window.innerHeight || 768;
-                w = Math.min(w, vw - 24);
-                h = Math.min(h, vh - 24);
+
+            if (data.type === 'resize') {
+                if (expectedOrigin && event.origin !== expectedOrigin) return;
+                if (typeof data.width !== 'number' || typeof data.height !== 'number') return;
+                var w = Math.max(80, Math.round(data.width));
+                var h = Math.max(72, Math.round(data.height));
+                if (data.open) {
+                    var vw = window.innerWidth || 1024;
+                    var vh = window.innerHeight || 768;
+                    w = Math.min(w, vw - 24);
+                    h = Math.min(h, vh - 24);
+                }
+                iframe.style.width = w + 'px';
+                iframe.style.height = h + 'px';
+                return;
             }
-            iframe.style.width = w + 'px';
-            iframe.style.height = h + 'px';
+
+            if (data.type === 'lightbox-open') {
+                if (expectedOrigin && event.origin !== expectedOrigin) return;
+                if (typeof data.src === 'string') openHostImageLightbox(data.src, data.alt || '');
+                return;
+            }
+
+            if (data.type === 'lightbox-open-blob' && data.imageBuffer instanceof ArrayBuffer) {
+                if (expectedOrigin && event.origin !== expectedOrigin) return;
+                var blob = new Blob([data.imageBuffer], { type: data.mime || 'image/png' });
+                var url = URL.createObjectURL(blob);
+                openHostImageLightbox(url, data.alt || '', { revokeOnClose: true });
+                return;
+            }
+
+            if (data.type === 'lightbox-close') {
+                if (expectedOrigin && event.origin !== expectedOrigin) return;
+                closeHostImageLightbox(false);
+            }
         });
     }
     
@@ -122,7 +214,7 @@
             'z-index: ' + config.zIndex,
             'box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18)',
             'border-radius: 16px',
-            'transition: width 0.25s ease, height 0.25s ease',
+            'transition: none',
             'background: transparent',
             'overflow: hidden'
         ];
@@ -141,7 +233,53 @@
         var style = document.createElement('style');
         style.id = 'isa-widget-styles';
         style.textContent = `
-            /* En móvil el widget puede ocupar pantalla completa; el iframe sigue controlando tamaño vía postMessage en escritorio */
+            .isa-host-img-lightbox {
+                position: fixed;
+                inset: 0;
+                z-index: 2147483646;
+                display: flex;
+                flex-direction: column;
+                background: rgba(15, 23, 42, 0.92);
+                backdrop-filter: blur(3px);
+                box-sizing: border-box;
+            }
+            .isa-host-lb-close {
+                position: fixed;
+                top: 12px;
+                right: 12px;
+                z-index: 2147483647;
+                width: 44px;
+                height: 44px;
+                border: none;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.18);
+                color: #fff;
+                font-size: 28px;
+                line-height: 1;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .isa-host-lb-inner {
+                flex: 1;
+                min-height: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 56px 12px 20px;
+                overflow: auto;
+                box-sizing: border-box;
+            }
+            .isa-host-lb-inner img {
+                max-width: 100%;
+                max-height: 100%;
+                width: auto;
+                height: auto;
+                object-fit: contain;
+                border-radius: 4px;
+                box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45);
+            }
             @media (max-width: 768px) {
                 #isa-chatbot-widget {
                     width: 100% !important;

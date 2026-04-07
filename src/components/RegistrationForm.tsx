@@ -327,117 +327,131 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
         </div>
       )}
 
-      <form onSubmit={handleSubmit} className="registration-form" style={connectionStatus !== 'ok' ? { opacity: 0.7, pointerEvents: 'none' as const } : undefined}>
-        {message && (
-          <div className={message.includes('❌') ? 'error-licencia' : 'success-message'}>
-            {message}
-          </div>
-        )}
-
-        {errors.general && (
-          <div className="error-message-general">
-            {errors.general}
-          </div>
-        )}
-
-        {/* Paso 1: NIT */}
-        {step === 'nit' && (
-          <div className="form-group">
-            <label htmlFor="nit">NIT de la Empresa *</label>
-            <input
-              id="nit"
-              type="text"
-              value={nit}
-              onChange={(e) => {
-                setNit(e.target.value)
-                if (errors.nit) {
-                  setErrors(prev => {
-                    const newErrors = { ...prev }
-                    delete newErrors.nit
-                    return newErrors
-                  })
-                }
-              }}
-              placeholder="Ingresa el NIT"
-              className={errors.nit ? 'error' : ''}
-              disabled={loading}
-            />
-            {errors.nit && <span className="error-message">{errors.nit}</span>}
-          </div>
-        )}
-
-        {/* Paso 2: Verificar director de proyecto */}
-        {step === 'director' && (
-          <>
-            {razonSocial && (
-              <div className="licencias-info">
-                <p className="licencias-titulo">{razonSocial}</p>
+      <form
+        onSubmit={handleSubmit}
+        className="registration-form-layout"
+        style={connectionStatus !== 'ok' ? { opacity: 0.7, pointerEvents: 'none' as const } : undefined}
+      >
+        <div className="registration-form-scroll">
+          <div className="registration-form-fields">
+            {message && (
+              <div className={message.includes('❌') ? 'error-licencia' : 'success-message'}>
+                {message}
               </div>
             )}
-            <p className="director-instruccion">Ingrese por favor la cédula del director de proyecto</p>
-            <div className="form-group">
-              <label htmlFor="directorCedula">Cédula del Director *</label>
-              <input
-                id="directorCedula"
-                type="text"
-                value={directorCedula}
-                onChange={(e) => {
-                  setDirectorCedula(e.target.value)
-                  if (errors.directorCedula) {
-                    setErrors(prev => { const n = { ...prev }; delete n.directorCedula; return n })
-                  }
-                }}
-                placeholder="Número de cédula"
-                className={errors.directorCedula ? 'error' : ''}
-                disabled={loading}
-              />
-              {errors.directorCedula && <span className="error-message">{errors.directorCedula}</span>}
-            </div>
-          </>
-        )}
 
-        {/* Paso 3: Seleccionar licencia activa */}
-        {step === 'licencia' && contratosVigentes.length > 0 && (
-          <>
-            <div className="licencias-info">
-              <p className="licencias-titulo">{razonSocial}</p>
-              <p className="licencias-subtitulo">Toque la licencia con la que desea consultar para continuar al menú</p>
-              <ul className="licencias-lista">
-                {contratosVigentes.map((c, idx) => (
-                  <li
-                    key={`${c.Codigo}-${idx}`}
-                    className={`licencia-item licencia-seleccionable ${licenciaSeleccionada === c.Descripcion ? 'licencia-selected' : ''}`}
-                    onClick={() => {
-                      if (errors.licencia) {
-                        setErrors(prev => { const n = { ...prev }; delete n.licencia; return n })
+            {errors.general && (
+              <div className="error-message-general">
+                {errors.general}
+              </div>
+            )}
+
+            {step === 'nit' && (
+              <div className="form-group">
+                <label htmlFor="nit">NIT de la Empresa *</label>
+                <input
+                  id="nit"
+                  type="text"
+                  value={nit}
+                  onChange={(e) => {
+                    setNit(e.target.value)
+                    if (errors.nit) {
+                      setErrors((prev) => {
+                        const newErrors = { ...prev }
+                        delete newErrors.nit
+                        return newErrors
+                      })
+                    }
+                  }}
+                  placeholder="Ingresa el NIT"
+                  className={errors.nit ? 'error' : ''}
+                  disabled={loading}
+                />
+                {errors.nit && <span className="error-message">{errors.nit}</span>}
+              </div>
+            )}
+
+            {step === 'director' && (
+              <>
+                {razonSocial && (
+                  <div className="licencias-info">
+                    <p className="licencias-titulo">{razonSocial}</p>
+                  </div>
+                )}
+                <p className="director-instruccion">Ingrese por favor la cédula del director de proyecto</p>
+                <div className="form-group">
+                  <label htmlFor="directorCedula">Cédula del Director *</label>
+                  <input
+                    id="directorCedula"
+                    type="text"
+                    value={directorCedula}
+                    onChange={(e) => {
+                      setDirectorCedula(e.target.value)
+                      if (errors.directorCedula) {
+                        setErrors((prev) => {
+                          const n = { ...prev }
+                          delete n.directorCedula
+                          return n
+                        })
                       }
-                      void handleSeleccionarLicencia(c.Descripcion)
                     }}
-                  >
-                    <span className="licencia-dot dot-activa" />
-                    <span className="licencia-nombre">{c.Descripcion}</span>
-                    {licenciaSeleccionada === c.Descripcion && <span className="licencia-check">✓</span>}
-                  </li>
-                ))}
-              </ul>
-              {errors.licencia && <span className="error-message">{errors.licencia}</span>}
-            </div>
-          </>
-        )}
+                    placeholder="Número de cédula"
+                    className={errors.directorCedula ? 'error' : ''}
+                    disabled={loading}
+                  />
+                  {errors.directorCedula && <span className="error-message">{errors.directorCedula}</span>}
+                </div>
+              </>
+            )}
+
+            {step === 'licencia' && contratosVigentes.length > 0 && (
+              <>
+                <div className="licencias-info">
+                  <p className="licencias-titulo">{razonSocial}</p>
+                  <p className="licencias-subtitulo">Toque la licencia con la que desea consultar para continuar al menú</p>
+                  <ul className="licencias-lista">
+                    {contratosVigentes.map((c, idx) => (
+                      <li
+                        key={`${c.Codigo}-${idx}`}
+                        className={`licencia-item licencia-seleccionable ${licenciaSeleccionada === c.Descripcion ? 'licencia-selected' : ''}`}
+                        onClick={() => {
+                          if (errors.licencia) {
+                            setErrors((prev) => {
+                              const n = { ...prev }
+                              delete n.licencia
+                              return n
+                            })
+                          }
+                          void handleSeleccionarLicencia(c.Descripcion)
+                        }}
+                      >
+                        <span className="licencia-dot dot-activa" />
+                        <span className="licencia-nombre">{c.Descripcion}</span>
+                        {licenciaSeleccionada === c.Descripcion && <span className="licencia-check">✓</span>}
+                      </li>
+                    ))}
+                  </ul>
+                  {errors.licencia && <span className="error-message">{errors.licencia}</span>}
+                </div>
+              </>
+            )}
+
+            {step === 'licencia' && loading && (
+              <p className="licencia-procesando" role="status">
+                Procesando registro…
+              </p>
+            )}
+          </div>
+        </div>
 
         {step !== 'licencia' && (
-          <button type="submit" className="submit-button" disabled={loading}>
+          <button type="submit" className="submit-button submit-button--footer" disabled={loading}>
             {loading
               ? 'Procesando...'
               : step === 'nit'
                 ? 'Verificar NIT'
                 : 'Verificar Director'}
           </button>
-        )}
-        {step === 'licencia' && loading && (
-          <p className="licencia-procesando" role="status">
-            Procesando registro…
-          </p>
         )}
       </form>
     </div>

@@ -44,8 +44,6 @@ export function postWidgetFrameResize(params: {
   if (!isEmbeddedInIframe()) return
 
   const { open, registered, view, expanded } = params
-  const vw = typeof window !== 'undefined' ? window.innerWidth : 400
-  const vh = typeof window !== 'undefined' ? window.innerHeight : 600
   const { w: refW, h: refH } = getHostViewport()
 
   let width: number
@@ -60,14 +58,17 @@ export function postWidgetFrameResize(params: {
     height = Math.min(720, Math.max(440, Math.round(refH * 0.8)))
     height = Math.min(height, refH - 24)
   } else if (!registered) {
-    width = Math.min(420, Math.max(320, vw - 16))
-    height = Math.min(640, Math.max(480, Math.round(vh * 0.92)))
+    // Mismas dimensiones que .chatbot-window (320×480): evita iframe más alto que la tarjeta.
+    const preferredW = 320
+    const preferredH = 480
+    width = Math.min(420, Math.max(320, preferredW), refW - 24)
+    height = Math.min(640, Math.max(360, preferredH), refH - 24)
   } else {
-    width = Math.min(400, Math.max(320, vw - 16))
+    width = Math.min(400, Math.max(320, 336), refW - 24)
     if (view === 'agente' || view === 'isa') {
-      height = Math.min(580, Math.max(480, Math.round(vh * 0.9)))
+      height = Math.min(580, Math.max(480, 540), refH - 24)
     } else {
-      height = Math.min(540, Math.max(440, Math.round(vh * 0.85)))
+      height = Math.min(540, Math.max(480, 500), refH - 24)
     }
   }
 

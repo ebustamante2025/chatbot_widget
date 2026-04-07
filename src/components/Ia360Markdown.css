@@ -213,58 +213,69 @@
   padding: 6px 8px;
 }
 
-/* Vista ampliada (lightbox) — portal a body para no recortar por overflow del listado */
+/* Vista ampliada: ocupa todo el viewport del documento (en iframe = todo el iframe) */
 .chat-ia360-lightbox {
   position: fixed;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  max-height: 100dvh;
   z-index: 999999;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 48px 16px 16px;
+  flex-direction: column;
+  padding: 0;
   box-sizing: border-box;
-  background: rgba(15, 23, 42, 0.88);
-  backdrop-filter: blur(2px);
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(3px);
 }
 
 .chat-ia360-lightbox-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 40px;
-  height: 40px;
+  position: fixed;
+  top: max(12px, env(safe-area-inset-top, 0px));
+  right: max(12px, env(safe-area-inset-right, 0px));
+  z-index: 1000001;
+  width: 44px;
+  height: 44px;
   border: none;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.18);
   color: #fff;
-  font-size: 26px;
+  font-size: 28px;
   line-height: 1;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: background 0.2s ease;
+  flex-shrink: 0;
 }
 
 .chat-ia360-lightbox-close:hover {
-  background: rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.32);
 }
 
 .chat-ia360-lightbox-inner {
-  max-width: min(96vw, 1400px);
-  max-height: 90vh;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 10px 16px;
+  box-sizing: border-box;
   overflow: auto;
-  border-radius: 8px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  -webkit-overflow-scrolling: touch;
 }
 
 .chat-ia360-lightbox-img {
   display: block;
   max-width: 100%;
+  max-height: 100%;
   width: auto;
   height: auto;
-  max-height: min(88vh, 1200px);
   object-fit: contain;
-  margin: 0;
-  background: #fff;
+  margin: 0 auto;
+  background: #0f172a;
+  border-radius: 4px;
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.5);
 }
