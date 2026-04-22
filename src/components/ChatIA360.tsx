@@ -232,7 +232,7 @@ function ChatIA360({ userData, token, servicio, onTokenRenewed }: ChatIA360Props
     setEnviando(true)
     setError(null)
     try {
-      const historyBefore = buildHistoryForApi([...messages, userMsg])
+      const historyBefore = buildHistoryForApi(messages)
       const { reply, ia360Images } = await enviarIa360DocChat({
         token: tokenRef.current,
         message: trimmed,
