@@ -1,7 +1,19 @@
+.chat-icon-surface {
+  display: block;
+  flex-shrink: 0;
+  background-color: #ffffff;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  /* Usar la luminancia del PNG como máscara: el gris del mate pasa a semitransparente, no “lavanda”. */
+  -webkit-mask-mode: luminance;
+  mask-mode: luminance;
+}
+
 .chat-icon {
   width: 100%;
   height: 100%;
-  display: block;
 }
-
-

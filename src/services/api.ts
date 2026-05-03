@@ -248,6 +248,51 @@ export const CANAL_WIDGET_ISA = 'WEB_ISA';
 /** Cola “chatear con agente” — canal distinto de Isa y de IA360_DOC. */
 export const CANAL_WIDGET_AGENTE = 'WEB_AGENTE';
 
+/**
+ * El contacto solicita cierre desde el widget: inserta mensaje SISTEMA en el hilo (visible para el asesor en el CRM),
+ * emite actividad por sockets y no marca la conversación como CERRADA (el asesor cierra en el CRM).
+ * Solo conversaciones canal WEB_AGENTE; valida empresa_id y contacto_id.
+ */
+export async function solicitarCierreSoporteDesdeWidget(
+  conversacionId: number,
+  empresaId: number,
+  contactoId: number,
+): Promise<{ duplicado?: boolean; message?: string }> {
+  const response = await fetch(
+    `${API_BASE_URL}/conversaciones/widget/${conversacionId}/solicitud-cierre`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ empresa_id: empresaId, contacto_id: contactoId }),
+    },
+  );
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((body as { message?: string }).message || (body as { error?: string }).error || 'No se pudo enviar la solicitud');
+  }
+  return body as { duplicado?: boolean; message?: string };
+}
+
+/** Renueva el reloj de inactividad del contacto mientras escribe (sin enviar mensaje). Máx. ~1 llamada / 8s en el cliente. */
+export async function heartbeatActividadClienteWidget(
+  conversacionId: number,
+  empresaId: number,
+  contactoId: number,
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE_URL}/conversaciones/widget/${conversacionId}/heartbeat-actividad`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ empresa_id: empresaId, contacto_id: contactoId }),
+    },
+  );
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error((body as { message?: string }).message || 'Heartbeat no aceptado');
+  }
+}
+
 export async function crearConversacion(
   empresaId: number,
   contactoId: number,
@@ -755,5 +800,27 @@ export async function enviarIa360DocChat(params: {
     });
     throw e;
   }
+}
+
+// ─── Menús del widget ────────────────────────────────────────────────────────
+
+export interface MenuWid {
+  id?: number;
+  clave: string;
+  nombre: string;
+  descripcion?: string;
+  activo: boolean;
+  orden?: number;
+}
+
+/**
+ * Obtiene las opciones de menú para el widget de una empresa.
+ * Si la empresa aún no tiene filas, el backend devuelve los 4 defaults activos.
+ */
+export async function obtenerMenusWid(): Promise<MenuWid[]> {
+  const res = await fetch(`${API_BASE_URL}/menus-wid`);
+  if (!res.ok) throw new Error(`Error al obtener menús: ${res.status}`);
+  const data = await res.json();
+  return (data.menus ?? []) as MenuWid[];
 }
 

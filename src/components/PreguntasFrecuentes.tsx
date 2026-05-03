@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { VolverLink } from './VolverLink'
 import './PreguntasFrecuentes.css'
 
 interface FaqItem {
@@ -39,14 +40,7 @@ function PreguntasFrecuentes({ onBack }: PreguntasFrecuentesProps) {
 
   return (
     <div className="preguntas-frecuentes">
-      <button
-        type="button"
-        className="preguntas-frecuentes-back"
-        onClick={onBack}
-        aria-label="Volver al menú"
-      >
-        ← Volver
-      </button>
+      <VolverLink onClick={onBack} ariaLabel="Volver al menú" title="Volver al menú" className="preguntas-frecuentes-volver" />
       <h3 className="preguntas-frecuentes-title">Preguntas frecuentes</h3>
       <div className="preguntas-frecuentes-list">
         {FAQ_DATA.map((item) => (

@@ -92,8 +92,20 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* «Volver» al NIT: barra mínima, no compite con el mensaje ni la lista */
+.registration-volver-bar {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  flex-shrink: 0;
+  padding: 2px 12px 4px;
+  margin: 0;
+  background: linear-gradient(to bottom, #fff 70%, rgba(255, 255, 255, 0));
+  box-shadow: 0 1px 0 rgba(0, 22, 137, 0.06);
+}
+
 .registration-form-fields {
-  padding: 12px 14px;
+  padding: 10px 14px 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -153,6 +165,15 @@
   margin-top: -2px;
 }
 
+.registration-footer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 12px 10px;
+  border-top: 1px solid #eceef2;
+  background: #fafafa;
+}
+
 .submit-button {
   padding: 10px 12px;
   background: #001689;
@@ -182,7 +203,8 @@
 .submit-button--footer {
   flex-shrink: 0;
   align-self: stretch;
-  margin: 8px 14px 12px;
+  margin: 0;
+  width: 100%;
   box-sizing: border-box;
 }
 

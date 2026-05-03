@@ -1,5 +1,13 @@
 # Widget Chatbot - Requiere que api-backend esté corriendo
 # Se conecta a la red crm-chatbot-network (creada por chatbot_api_backend)
+#
+# Docker (producción o pruebas): copie .env.example → .env y ejecute:
+#   docker compose up -d --build
+#
+# Localhost (Vite): copie .env.development.example → .env.development y:
+#   npm run dev
+#
+# Plantillas: .env.example | .env.development.example
 
 services:
   widget-chatbot:
@@ -12,7 +20,7 @@ services:
     image: widget-chatbot:latest
     container_name: widget-chatbot-isa
     ports:
-       - "8180:80"
+      - "${WIDGET_PORT:-8180}:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     networks:

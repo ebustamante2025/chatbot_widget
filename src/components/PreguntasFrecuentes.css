@@ -8,23 +8,8 @@
   box-sizing: border-box;
 }
 
-.preguntas-frecuentes-back {
-  align-self: flex-start;
-  margin: 0 0 10px 0;
-  padding: 8px 0;
-  background: none;
-  border: none;
-  color: #001689;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.preguntas-frecuentes-back:hover {
-  text-decoration: underline;
+.preguntas-frecuentes-volver {
+  margin-bottom: 10px;
 }
 
 .preguntas-frecuentes-title {

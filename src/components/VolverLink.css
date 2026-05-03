@@ -1,0 +1,50 @@
+/* Enlace «← Volver» unificado (registro, bienvenida, FAQ, agente) */
+.volver-link {
+  align-self: flex-start;
+  margin: 0;
+  padding: 2px 0;
+  border: none;
+  background: none;
+  color: #3d5a80;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  line-height: 1.3;
+}
+
+.volver-link:hover:not(:disabled) {
+  color: #001689;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.volver-link:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Cabecera oscura del widget (p. ej. IA360) */
+.volver-link--on-dark {
+  align-self: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.2s ease;
+}
+
+.volver-link--on-dark:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.3);
+  color: #fff;
+  text-decoration: none;
+}
+
+.volver-link--on-dark:disabled {
+  opacity: 0.55;
+}

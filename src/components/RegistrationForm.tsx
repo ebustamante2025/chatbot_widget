@@ -11,11 +11,17 @@ import {
   type ContactoCliente,
 } from '../services/api'
 import { MENSAJES_VALIDACION } from '../data/mensajesValidacion'
+import { VolverLink } from './VolverLink'
 import './RegistrationForm.css'
 
 /** Reemplaza espacios por guion bajo y envía en mayúsculas. Ej: "HGI Nómina" → "HGI_NÓMINA" */
 function formatearNombreLicencia(nombre: string): string {
   return nombre.trim().replace(/\s+/g, '_').toUpperCase()
+}
+
+/** Solo dígitos (NIT y cédula sin puntos ni guiones). */
+function soloDigitos(value: string): string {
+  return value.replace(/\D/g, '')
 }
 
 type ConnectionStatus = 'checking' | 'ok' | 'unreachable' | 'database_error'
@@ -84,7 +90,8 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
   }
 
   const handleVerificarNit = async () => {
-    if (!nit.trim()) {
+    const nitDigits = soloDigitos(nit)
+    if (!nitDigits) {
       setErrors({ nit: MENSAJES_VALIDACION.nitRequerido })
       return
     }
@@ -96,14 +103,14 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
     setLoading(true)
 
     try {
-      const result = await verificarEmpresa(nit.trim())
+      const result = await verificarEmpresa(nitDigits)
       if (!result.licenciaValida || (result.contratosVigentes?.length ?? 0) === 0) {
         setErrors({ nit: MENSAJES_VALIDACION.sinLicencia })
         setMessage(`❌ ${MENSAJES_VALIDACION.sinLicenciaMensaje}`)
         setLoading(false)
         return
       }
-      const nombreEmpresa = result.nombre_empresa ?? result.empresa?.nombre_empresa ?? `Empresa NIT ${nit.trim()}`
+      const nombreEmpresa = result.nombre_empresa ?? result.empresa?.nombre_empresa ?? `Empresa NIT ${nitDigits}`
       const textoEmpresa = result.nit ? `NIT ${result.nit} — ${nombreEmpresa}` : nombreEmpresa
       setRazonSocial(textoEmpresa)
       setContratosVigentes(result.contratosVigentes ?? [])
@@ -119,7 +126,7 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
   }
 
   const handleVerificarDirector = async () => {
-    if (!directorCedula.trim()) {
+    if (!soloDigitos(directorCedula)) {
       setErrors({ directorCedula: MENSAJES_VALIDACION.cedulaRequerida })
       return
     }
@@ -127,9 +134,9 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
 
     setErrors({})
 
-    // Validar contra ContactosClientes de la API (Identificacion)
+    const docIngresado = soloDigitos(directorCedula)
     const contactoValido = contactosClientes.find(
-      (c) => String(c.Identificacion).trim() === directorCedula.trim()
+      (c) => soloDigitos(String(c.Identificacion)) === docIngresado
     )
 
     if (!contactoValido) {
@@ -163,7 +170,9 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
     setErrors({})
     setMessage(MENSAJES_VALIDACION.procesando)
 
-    const nombreEmpresa = razonSocial || `Empresa NIT ${nit.trim()}`
+    const nitDigits = soloDigitos(nit)
+    const cedulaDigits = soloDigitos(directorCedula)
+    const nombreEmpresa = razonSocial || `Empresa NIT ${nitDigits}`
 
     // 1. Enviar la licencia seleccionada a la API webhook (vía proxy del backend para evitar CORS)
     try {
@@ -171,10 +180,10 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          nit: nit.trim(),
+          nit: nitDigits,
           razon_social: nombreEmpresa,
           director: directorNombre,
-          director_cedula: directorCedula.trim(),
+          director_cedula: cedulaDigits,
           licencia: formatearNombreLicencia(lic),
         }),
       })
@@ -187,14 +196,14 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
     let empresaNombre = nombreEmpresa
 
     try {
-      const result = await verificarEmpresa(nit.trim())
+      const result = await verificarEmpresa(nitDigits)
 
       if (result.existe && result.empresa) {
         empresaId = result.empresa.id_empresa
         empresaNombre = result.empresa.nombre_empresa
       } else {
         const nuevaEmpresa = await crearEmpresa({
-          nit: nit.trim(),
+          nit: nitDigits,
           nombre_empresa: nombreEmpresa,
         })
         empresaId = nuevaEmpresa.id_empresa
@@ -211,7 +220,7 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
     let contactoId: number | undefined
 
     try {
-      const resultContacto = await verificarContacto(empresaId, directorCedula.trim())
+      const resultContacto = await verificarContacto(empresaId, cedulaDigits)
 
       if (resultContacto.existe && resultContacto.contacto) {
         contactoId = resultContacto.contacto.id_contacto
@@ -222,7 +231,7 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
           nombre: directorNombre,
           cargo: 'Director de Proyecto',
           tipo_documento: 'CC',
-          documento: directorCedula.trim(),
+          documento: cedulaDigits,
         })
         contactoId = nuevoContacto.id_contacto
       }
@@ -239,7 +248,7 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
 
     // 4. Completar registro y pasar al menú (WelcomePanel)
     onSubmit({
-      nit: nit.trim(),
+      nit: nitDigits,
       empresa: empresaNombre,
       funcionario: directorNombre,
       empresaId,
@@ -257,6 +266,21 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
     } else if (step === 'licencia') {
       await handleSeleccionarLicencia(null)
     }
+  }
+
+  /** Vuelve al NIT para elegir otra empresa o corregir el número (no borra el NIT tecleado). */
+  const volverAPasoNit = () => {
+    licenciaEnviandoRef.current = false
+    setStep('nit')
+    setDirectorNombre('')
+    setDirectorCedula('')
+    setContratosVigentes([])
+    setContactosClientes([])
+    setRazonSocial('')
+    setLicenciaSeleccionada(null)
+    setErrors({})
+    setMessage('')
+    setLoading(false)
   }
 
   return (
@@ -333,6 +357,16 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
         style={connectionStatus !== 'ok' ? { opacity: 0.7, pointerEvents: 'none' as const } : undefined}
       >
         <div className="registration-form-scroll">
+          {(step === 'director' || step === 'licencia') && (
+            <div className="registration-volver-bar">
+              <VolverLink
+                onClick={volverAPasoNit}
+                disabled={loading}
+                title="Volver al NIT y verificar de nuevo"
+                ariaLabel="Volver al NIT y verificar de nuevo"
+              />
+            </div>
+          )}
           <div className="registration-form-fields">
             {message && (
               <div className={message.includes('❌') ? 'error-licencia' : 'success-message'}>
@@ -352,9 +386,12 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
                 <input
                   id="nit"
                   type="text"
+                  inputMode="numeric"
+                  autoComplete="off"
+                  maxLength={15}
                   value={nit}
                   onChange={(e) => {
-                    setNit(e.target.value)
+                    setNit(soloDigitos(e.target.value))
                     if (errors.nit) {
                       setErrors((prev) => {
                         const newErrors = { ...prev }
@@ -363,7 +400,6 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
                       })
                     }
                   }}
-                  placeholder="Ingresa el NIT"
                   className={errors.nit ? 'error' : ''}
                   disabled={loading}
                 />
@@ -384,9 +420,12 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
                   <input
                     id="directorCedula"
                     type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    maxLength={12}
                     value={directorCedula}
                     onChange={(e) => {
-                      setDirectorCedula(e.target.value)
+                      setDirectorCedula(soloDigitos(e.target.value))
                       if (errors.directorCedula) {
                         setErrors((prev) => {
                           const n = { ...prev }
@@ -395,7 +434,6 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
                         })
                       }
                     }}
-                    placeholder="Número de cédula"
                     className={errors.directorCedula ? 'error' : ''}
                     disabled={loading}
                   />
@@ -445,13 +483,15 @@ function RegistrationForm({ onSubmit, onClose, expanded, onToggleExpand }: Regis
         </div>
 
         {step !== 'licencia' && (
-          <button type="submit" className="submit-button submit-button--footer" disabled={loading}>
-            {loading
-              ? 'Procesando...'
-              : step === 'nit'
-                ? 'Verificar NIT'
-                : 'Verificar Director'}
-          </button>
+          <div className="registration-footer-actions">
+            <button type="submit" className="submit-button submit-button--footer" disabled={loading}>
+              {loading
+                ? 'Procesando...'
+                : step === 'nit'
+                  ? 'Verificar NIT'
+                  : 'Verificar Director'}
+            </button>
+          </div>
         )}
       </form>
     </div>

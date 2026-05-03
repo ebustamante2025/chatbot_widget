@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import ChatIcon from './ChatIcon'
 import MessageList from './MessageList'
 import MessageInput from './MessageInput'
 import RegistrationForm from './RegistrationForm'
 import WelcomePanel from './WelcomePanel'
 import PreguntasFrecuentes from './PreguntasFrecuentes'
-import ChatAgente from './ChatAgente'
+import ChatAgente, { type ChatAgenteHandle } from './ChatAgente'
 import ChatIA360 from './ChatIA360'
+import { VolverLink } from './VolverLink'
 import { Message, UserData } from '../types'
 import {
   sendMessageToIsaAgent,
@@ -15,6 +17,8 @@ import {
   guardarMensajeBD,
   obtenerTokenAccesoFAQ,
   verificarServicioFAQ,
+  obtenerMenusWid,
+  type MenuWid,
 } from '../services/api'
 import { isEmbeddedInIframe, postWidgetFrameResize } from '../utils/widgetEmbed'
 import './Chatbot.css'
@@ -116,6 +120,53 @@ function Chatbot() {
   // Conversación en BD para el chat con Isa
   const isaConversacionIdRef = useRef<number | null>(null)
   const creandoConversacionRef = useRef<boolean>(false)
+  const chatAgenteRef = useRef<ChatAgenteHandle | null>(null)
+  const agenteMenuBtnRef = useRef<HTMLButtonElement>(null)
+  const agenteMenuDropdownRef = useRef<HTMLDivElement>(null)
+  const [agenteMenuOpen, setAgenteMenuOpen] = useState(false)
+  const [agenteConvListo, setAgenteConvListo] = useState(false)
+  const [agenteMenuPos, setAgenteMenuPos] = useState({ top: 0, right: 0 })
+  const [menusWid, setMenusWid] = useState<MenuWid[]>([])
+
+  const updateAgenteMenuPosition = useCallback(() => {
+    const el = agenteMenuBtnRef.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    setAgenteMenuPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) })
+  }, [])
+
+  useEffect(() => {
+    if (view !== 'agente') {
+      setAgenteConvListo(false)
+      setAgenteMenuOpen(false)
+    }
+  }, [view])
+
+  useEffect(() => {
+    if (!agenteMenuOpen) return
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node
+      if (agenteMenuBtnRef.current?.contains(t)) return
+      if (agenteMenuDropdownRef.current?.contains(t)) return
+      setAgenteMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAgenteMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onDoc)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDoc)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [agenteMenuOpen])
+
+  useEffect(() => {
+    if (!agenteMenuOpen) return
+    const onResize = () => updateAgenteMenuPosition()
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [agenteMenuOpen, updateAgenteMenuPosition])
 
   const handleIa360TokenRenewed = useCallback((newToken: string) => {
     setIa360WidgetSession((prev) => (prev ? { ...prev, token: newToken } : null))
@@ -127,6 +178,9 @@ function Chatbot() {
     if (stored) {
       setUserData(stored)
       setIsRegistered(true)
+      obtenerMenusWid()
+        .then(setMenusWid)
+        .catch(() => setMenusWid([]))
     }
   }, [])
 
@@ -163,10 +217,32 @@ function Chatbot() {
     })
   }, [isOpen, isRegistered, view, isExpanded])
 
+  const handleCorregirIdentificacion = useCallback(() => {
+    setUserData(null)
+    saveStoredUser(null)
+    setIsRegistered(false)
+    setView('panel')
+    setPanelFaqError(null)
+    setIa360WidgetSession(null)
+    isaConversacionIdRef.current = null
+    creandoConversacionRef.current = false
+    isaSessionIdRef.current = generateSessionId()
+    setMessages([])
+    setAgenteConvListo(false)
+    setAgenteMenuOpen(false)
+  }, [])
+
+  const handleAgenteConvListo = useCallback(() => {
+    setAgenteConvListo(true)
+  }, [])
+
   const handleRegistration = (data: UserData) => {
     setUserData(data)
     setIsRegistered(true)
     saveStoredUser(data)
+    obtenerMenusWid()
+      .then(setMenusWid)
+      .catch(() => setMenusWid([]))
     setView('panel')
     // Mensaje de bienvenida para cuando entre a hablar con Isa
     const welcomeMessage: Message = {
@@ -441,6 +517,8 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
                   setPanelFaqError(null)
                   setView('agente')
                 }}
+                onCorregirDatos={handleCorregirIdentificacion}
+                menusWid={menusWid}
                 onSelectPrueba={async () => {
                   const mensajeAcceso =
                     'Acceso al Asistente Inteligente\n\nPara acceder al asistente inteligente debe validarse con su NIT y usuario en el chat de soporte. Abra el chatbot, ingrese el NIT de su empresa, valide el director (usuario) y seleccione la licencia. Luego pulse "Prueba" en el menú del chat.\n\nHasta entonces no podrá acceder a esta opción.'
@@ -521,6 +599,32 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
                     expanded={isExpanded}
                     onToggle={() => setIsExpanded((v) => !v)}
                   />
+                  <div className="chatbot-header-agente-menu-wrap">
+                    <button
+                      ref={agenteMenuBtnRef}
+                      type="button"
+                      className="chatbot-header-more-button"
+                      aria-haspopup="menu"
+                      aria-expanded={agenteMenuOpen}
+                      aria-controls="chatbot-agente-header-menu"
+                      disabled={!agenteConvListo}
+                      title={agenteConvListo ? 'Más opciones' : 'Esperando conversación…'}
+                      aria-label="Más opciones del chat con agente"
+                      onClick={() => {
+                        setAgenteMenuOpen((was) => {
+                          if (was) return false
+                          updateAgenteMenuPosition()
+                          return true
+                        })
+                      }}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                        <circle cx="12" cy="6" r="1.75" fill="currentColor" />
+                        <circle cx="12" cy="12" r="1.75" fill="currentColor" />
+                        <circle cx="12" cy="18" r="1.75" fill="currentColor" />
+                      </svg>
+                    </button>
+                  </div>
                   <button
                     className="close-button"
                     onClick={() => setIsOpen(false)}
@@ -530,31 +634,51 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
                   </button>
                 </div>
               </div>
+              {agenteMenuOpen &&
+                createPortal(
+                  <div
+                    ref={agenteMenuDropdownRef}
+                    id="chatbot-agente-header-menu"
+                    className="chatbot-agente-header-menu-dropdown"
+                    role="menu"
+                    style={{ position: 'fixed', top: agenteMenuPos.top, right: agenteMenuPos.right }}
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="chatbot-agente-header-menu-item"
+                      onClick={() => {
+                        setAgenteMenuOpen(false)
+                        chatAgenteRef.current?.solicitarCierreConversacion()
+                      }}
+                    >
+                      Cerrar conversación
+                    </button>
+                  </div>,
+                  document.body,
+                )}
               <ChatAgente
+                ref={chatAgenteRef}
                 userData={userData!}
                 onBack={() => setView('panel')}
-                onBackFromClosed={() => {
-                  setUserData(null)
-                  saveStoredUser(null)
-                  setIsRegistered(false)
-                }}
+                onBackFromClosed={handleCorregirIdentificacion}
+                onConversacionReady={handleAgenteConvListo}
+                onSolicitudCierreRegistrada={handleCorregirIdentificacion}
               />
             </>
           ) : view === 'ia360' && ia360WidgetSession ? (
             <>
               <div className="chatbot-header chatbot-header-panel">
                 <div className="chatbot-header-content">
-                  <button
-                    type="button"
-                    className="back-to-panel-button"
+                  <VolverLink
+                    variant="onDark"
                     onClick={() => {
                       setView('panel')
                       setIa360WidgetSession(null)
                     }}
-                    aria-label="Volver al menú"
-                  >
-                    ← Volver
-                  </button>
+                    ariaLabel="Volver al menú"
+                    title="Volver al menú"
+                  />
                   <h3>IA360 · documentación</h3>
                 </div>
                 <div className="chatbot-header-actions">

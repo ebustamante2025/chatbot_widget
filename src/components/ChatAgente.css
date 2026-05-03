@@ -9,6 +9,100 @@
 
 .chat-agente--conversacion {
   padding: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.chat-agente-dialog-cierre-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  box-sizing: border-box;
+  background: rgba(15, 23, 42, 0.5);
+}
+
+.chat-agente-dialog-cierre {
+  width: 100%;
+  max-width: 300px;
+  padding: 18px 16px 16px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 1px rgba(0, 22, 137, 0.1),
+    0 16px 40px rgba(0, 0, 0, 0.18);
+}
+
+.chat-agente-dialog-cierre-title {
+  margin: 0 0 10px 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #001689;
+  line-height: 1.3;
+}
+
+.chat-agente-dialog-cierre-text {
+  margin: 0 0 18px 0;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #374151;
+}
+
+.chat-agente-dialog-cierre-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.chat-agente-dialog-cierre-btn-cancelar {
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #374151;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.chat-agente-dialog-cierre-btn-cancelar:hover {
+  background: #e5e7eb;
+}
+
+.chat-agente-dialog-cierre-btn-aceptar {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #fff;
+  background: #001689;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.chat-agente-dialog-cierre-btn-aceptar:hover {
+  background: #0024b0;
+}
+
+.chat-agente-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.chat-agente-mensajes-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .chat-agente-mensajes {
@@ -18,6 +112,84 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+}
+
+/* Cubre mensajes + pie (sin caja de envío visible), mismo criterio visual que conversación cerrada a pantalla completa en el widget */
+.chat-agente-cierre-cliente-fullscreen {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px 16px 24px;
+  box-sizing: border-box;
+  background: #fff;
+  overflow-y: auto;
+}
+
+.chat-agente-cierre-cliente-fullscreen-inner {
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
+}
+
+.chat-agente-cierre-cliente-fullscreen-inner .chat-agente-marca-logo-wrap {
+  margin-bottom: 10px;
+}
+
+.chat-agente-marca-logo-wrap {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-agente-marca-logo {
+  max-width: min(320px, 100%);
+  max-height: 140px;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  mix-blend-mode: multiply;
+}
+
+.chat-agente-cierre-cliente-fullscreen-inner .chat-agente-title {
+  margin-bottom: 8px;
+}
+
+.chat-agente-cierre-cliente-fullscreen-inner .chat-agente-hint {
+  margin-bottom: 14px;
+}
+
+.chat-agente--cerrada-clickeable {
+  cursor: pointer;
+}
+
+.chat-agente-hint--tap {
+  margin-top: 16px;
+  font-size: 13px;
+  font-weight: 700 !important;
+  color: #333 !important;
+}
+
+.chat-agente-cierre-cliente-btn-volver {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  color: #fff;
+  background: #001689;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.chat-agente-cierre-cliente-btn-volver:hover {
+  background: #0024b0;
 }
 
 .chat-agente-msg {
@@ -43,12 +215,26 @@
   border-bottom-left-radius: 4px;
 }
 
-.chat-agente-msg--bot,
-.chat-agente-msg--sistema {
+.chat-agente-msg--bot {
   align-self: center;
   background: #f3f4f6;
   color: #6b7280;
   font-size: 13px;
+}
+
+/* Avisos del sistema (p. ej. inactividad): mismo lenguaje visual que la caja de “cola” */
+.chat-agente-msg--sistema {
+  align-self: stretch;
+  max-width: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 10px 14px;
+  background: #eff6ff;
+  border-left: 4px solid #2563eb;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #1e40af;
+  line-height: 1.45;
 }
 
 .chat-agente-typing .chat-agente-msg-text {
@@ -172,6 +358,55 @@
   line-height: 1.3;
 }
 
+.chat-agente-solicitud-cierre {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-top: 1px solid #e5e7eb;
+}
+
+.chat-agente-solicitud-cierre-aviso {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #374151;
+}
+
+.chat-agente-btn-finalizar-soporte {
+  align-self: flex-end;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #991b1b;
+  background: #fff;
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.chat-agente-btn-finalizar-soporte:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #f87171;
+}
+
+.chat-agente-btn-finalizar-soporte:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.chat-agente-input-bloqueado {
+  margin: 0;
+  padding: 8px 12px 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: #6b7280;
+  text-align: center;
+}
+
 .chat-agente-input {
   border-top: 1px solid #e5e7eb;
   background: white;
@@ -244,20 +479,32 @@
   color: #dc2626;
 }
 
-.chat-agente-back {
-  align-self: flex-start;
+.chat-agente > .volver-link {
   margin: 0 0 16px 0;
-  padding: 8px 0;
-  background: none;
-  border: none;
-  color: #001689;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
+  padding: 4px 0;
 }
 
-.chat-agente-back:hover {
-  text-decoration: underline;
+.chat-agente-topbar {
+  flex-shrink: 0;
+  padding: 10px 12px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 30;
+}
+
+.chat-agente-topbar .volver-link {
+  color: #001689;
+  font-weight: 600;
+}
+
+.chat-agente-main {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .chat-agente-content {

@@ -4,7 +4,11 @@ dist
 .gitignore
 .env
 .env.local
+.env.development
+.env.production
 .env.*.local
+!.env.example
+!.env.development.example
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
