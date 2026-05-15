@@ -18,6 +18,7 @@ import {
   obtenerTokenAccesoFAQ,
   verificarServicioFAQ,
   obtenerMenusWid,
+  obtenerDisponibilidadAgenteHumano,
   type MenuWid,
 } from '../services/api'
 import { isEmbeddedInIframe, postWidgetFrameResize } from '../utils/widgetEmbed'
@@ -127,6 +128,9 @@ function Chatbot() {
   const [agenteConvListo, setAgenteConvListo] = useState(false)
   const [agenteMenuPos, setAgenteMenuPos] = useState({ top: 0, right: 0 })
   const [menusWid, setMenusWid] = useState<MenuWid[]>([])
+  const [agenteDisponible, setAgenteDisponible] = useState<boolean | null>(null)
+  const [agenteFueraHorarioTooltip, setAgenteFueraHorarioTooltip] = useState('')
+  const [agenteHorarioResumenLinea, setAgenteHorarioResumenLinea] = useState('')
 
   const updateAgenteMenuPosition = useCallback(() => {
     const el = agenteMenuBtnRef.current
@@ -183,6 +187,32 @@ function Chatbot() {
         .catch(() => setMenusWid([]))
     }
   }, [])
+
+  useEffect(() => {
+    if (!isRegistered || !userData?.empresaId || !userData?.contactoId) return
+    let cancelled = false
+    const cargar = () => {
+      obtenerDisponibilidadAgenteHumano()
+        .then((d) => {
+          if (cancelled) return
+          setAgenteDisponible(d.disponible)
+          setAgenteFueraHorarioTooltip(d.tooltip || '')
+          setAgenteHorarioResumenLinea((d.resumen_horario_linea ?? '').trim())
+        })
+        .catch(() => {
+          if (cancelled) return
+          setAgenteDisponible(true)
+          setAgenteFueraHorarioTooltip('')
+          setAgenteHorarioResumenLinea('')
+        })
+    }
+    cargar()
+    const interval = setInterval(cargar, 5 * 60 * 1000)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+    }
+  }, [isRegistered, userData?.empresaId, userData?.contactoId])
 
   useEffect(() => {
     if (!isOpen) setIsExpanded(false)
@@ -471,6 +501,9 @@ Soy ${AGENT_NAME}, tu asistente virtual.`,
               <WelcomePanel
                 userData={userData!}
                 faqError={panelFaqError}
+                agenteDisponible={agenteDisponible}
+                agenteFueraHorarioTooltip={agenteFueraHorarioTooltip}
+                agenteHorarioResumenLinea={agenteHorarioResumenLinea}
                 onSelectPreguntasFrecuentes={async () => {
                   const licencia = userData!.licencia?.trim()
                   if (licencia) {

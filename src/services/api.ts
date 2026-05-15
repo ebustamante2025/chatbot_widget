@@ -248,6 +248,29 @@ export const CANAL_WIDGET_ISA = 'WEB_ISA';
 /** Cola “chatear con agente” — canal distinto de Isa y de IA360_DOC. */
 export const CANAL_WIDGET_AGENTE = 'WEB_AGENTE';
 
+export type DisponibilidadAgente = {
+  disponible: boolean
+  codigo: string
+  razon: string
+  tooltip: string
+  /** Misma ventana que `tooltip`, en una línea (subtítulo del botón agente). Ausente en APIs antiguas. */
+  resumen_horario_linea?: string
+  mensaje: string
+  es_festivo: boolean
+  nombre_festivo: string | null
+  proximo_resumen: string | null
+}
+
+/** Estado público: ¿se puede abrir cola de agente humano? (horario Colombia + festivos + novedades). */
+export async function obtenerDisponibilidadAgenteHumano(): Promise<DisponibilidadAgente> {
+  const response = await fetch(`${API_BASE_URL}/widget/horario-agente/disponibilidad`)
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}))
+    throw new Error((body as { error?: string }).error || 'No se pudo consultar disponibilidad')
+  }
+  return response.json() as Promise<DisponibilidadAgente>
+}
+
 /**
  * El contacto solicita cierre desde el widget: inserta mensaje SISTEMA en el hilo (visible para el asesor en el CRM),
  * emite actividad por sockets y no marca la conversación como CERRADA (el asesor cierra en el CRM).
@@ -311,7 +334,13 @@ export async function crearConversacion(
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.message || 'Error al crear conversación');
+    const msg =
+      typeof (err as { message?: string }).message === 'string'
+        ? (err as { message: string }).message
+        : response.status === 403
+          ? (err as { razon?: string }).razon || 'Servicio de agente no disponible en este momento'
+          : 'Error al crear conversación';
+    throw new Error(msg);
   }
   const result = await response.json();
   return result.conversacion;

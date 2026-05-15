@@ -269,6 +269,7 @@
   margin-bottom: 8px;
   border: 1px solid #ffc107;
   font-weight: 600;
+  white-space: pre-line;
 }
 
 

@@ -17,7 +17,7 @@ const FAQ_DATA: FaqItem[] = [
   {
     id: '2',
     pregunta: '¿Cuáles son los horarios de atención?',
-    respuesta: 'Isa está disponible 24/7. Los agentes humanos atienden en horario de lunes a viernes, 8:00 a 18:00.',
+    respuesta: 'Isa está disponible 24/7. Los agentes humanos atienden en horario de lunes a sábado, 8:00 a 17:30 (hora Colombia).',
   },
   {
     id: '3',

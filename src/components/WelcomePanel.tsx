@@ -8,6 +8,11 @@ import './WelcomePanel.css'
 interface WelcomePanelProps {
   userData: UserData
   faqError?: string | null
+  /** null = comprobando; false = fuera de horario */
+  agenteDisponible?: boolean | null
+  agenteFueraHorarioTooltip?: string
+  /** Una línea con horario (API); debe coincidir con el párrafo del tooltip. */
+  agenteHorarioResumenLinea?: string
   onSelectPreguntasFrecuentes: () => void
   onSelectChatearIsa: () => void
   onSelectChatearAgente: () => void
@@ -21,6 +26,9 @@ interface WelcomePanelProps {
 function WelcomePanel({
   userData,
   faqError,
+  agenteDisponible = true,
+  agenteFueraHorarioTooltip = '',
+  agenteHorarioResumenLinea = '',
   onSelectPreguntasFrecuentes,
   onSelectChatearIsa,
   onSelectChatearAgente,
@@ -90,15 +98,63 @@ function WelcomePanel({
         {menuActivo('agente') && (
           <button
             type="button"
-            className="welcome-panel-option"
-            onClick={onSelectChatearAgente}
+            className={[
+              'welcome-panel-option',
+              'welcome-panel-option--agente-humano',
+              agenteDisponible === false
+                ? 'welcome-panel-option--agente-no-disponible'
+                : agenteDisponible === null
+                  ? 'welcome-panel-option--agente-pending'
+                  : '',
+            ]
+              .filter(Boolean)
+              .join(' ')}
+            onClick={() => {
+              if (agenteDisponible === false || agenteDisponible === null) return
+              onSelectChatearAgente()
+            }}
+            disabled={agenteDisponible === false || agenteDisponible === null}
             aria-label="Chatear con un agente"
+            aria-describedby={
+              agenteDisponible === false
+                ? 'welcome-agente-horario-msg'
+                : agenteDisponible === null
+                  ? 'welcome-agente-horario-pending'
+                  : undefined
+            }
           >
             <span className="welcome-panel-option-avatar welcome-panel-option-avatar--img">
-              <img src={iconoAgente} alt="Agente de soporte" className="welcome-panel-option-img" />
+              <img src={iconoAgente} alt="" className="welcome-panel-option-img" />
             </span>
             <span className="welcome-panel-option-label">Chatear con un agente</span>
-            <span className="welcome-panel-option-desc">Atención humana en vivo</span>
+            <span
+              id={agenteDisponible === null ? 'welcome-agente-horario-pending' : undefined}
+              className="welcome-panel-option-desc"
+            >
+              {agenteDisponible === null
+                ? 'Comprobando horario…'
+                : agenteDisponible === false
+                  ? agenteHorarioResumenLinea.trim() ||
+                    'Lunes a sábado de 8:00 AM a 5:30 PM · Colombia'
+                  : 'Atención humana en vivo'}
+            </span>
+            {agenteDisponible === false && (
+              <div
+                id="welcome-agente-horario-msg"
+                className="welcome-panel-option-agente-estado welcome-panel-option-agente-estado--off"
+              >
+                <span className="welcome-panel-option-agente-estado__badge" aria-hidden>
+                  ⏰
+                </span>
+                <div className="welcome-panel-option-agente-estado__copy">
+                  <span className="welcome-panel-option-agente-estado__titulo">Fuera de horario</span>
+                  <p className="welcome-panel-option-agente-estado__texto">
+                    {agenteFueraHorarioTooltip.trim() ||
+                      'En este momento no hay atención con agente. Horario: lunes a sábado de 8:00 AM a 5:30 PM (hora Colombia). Puedes escribir a Isa.'}
+                  </p>
+                </div>
+              </div>
+            )}
           </button>
         )}
         {menuActivo('prueba') && onSelectPrueba && (

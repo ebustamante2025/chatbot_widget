@@ -3,6 +3,7 @@ import { io, type Socket } from 'socket.io-client'
 import {
   crearConversacion,
   CANAL_WIDGET_AGENTE,
+  obtenerDisponibilidadAgenteHumano,
   enviarMensajeAgente,
   editarMensajeContacto,
   eliminarMensajeContacto,
@@ -145,7 +146,13 @@ const ChatAgente = forwardRef<ChatAgenteHandle, ChatAgenteProps>(function ChatAg
       servicioEnviadoParaConvRef.current = null
       ultimoHeartbeatEscrituraRef.current = 0
       setEstadoConv(null)
-      initPromiseRef.current = crearConversacion(eid, cid, { canal: CANAL_WIDGET_AGENTE })
+      initPromiseRef.current = (async () => {
+        const disp = await obtenerDisponibilidadAgenteHumano()
+        if (!disp.disponible) {
+          throw new Error(disp.mensaje.replace(/\*\*/g, ''))
+        }
+        return crearConversacion(eid, cid, { canal: CANAL_WIDGET_AGENTE })
+      })()
     }
     const promise = initPromiseRef.current
     if (!promise) {
@@ -469,7 +476,7 @@ const ChatAgente = forwardRef<ChatAgenteHandle, ChatAgenteProps>(function ChatAg
             conectamos.
           </p>
           <p className="chat-agente-hint">
-            Horario de agentes: Lunes a viernes, 8:00 - 18:00.
+            Horario de agentes: lunes a sábado, 8:00 – 17:30 (hora Colombia).
           </p>
           <div className="chat-agente-status">
             <span className="chat-agente-status-dot" />

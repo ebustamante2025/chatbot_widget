@@ -7,9 +7,11 @@ export const MENSAJES_VALIDACION = {
   // --- NIT ---
   nitRequerido: 'El NIT es requerido',
   sinLicencia: 'Sin licencia',
-  sinLicenciaMensaje: 'Su empresa no cuenta con licencias activas para usar el soporte en línea en este momento. Para validar o activar su licencia, contacte a Servicio al Cliente.',
+  sinLicenciaMensaje:
+    'Actualmente su empresa no cuenta con licencias activas para acceder al soporte en línea.\n\nPara validar el estado de la licencia o gestionar su activación, por favor comuníquese con el área de Servicio al Cliente.',
   errorVerificarNit: 'No se pudo verificar',
-  errorVerificarNitFallback: 'Su empresa no cuenta con licencias activas para usar el soporte en línea. Para más información, contacte a Servicio al Cliente.',
+  errorVerificarNitFallback:
+    'Actualmente su empresa no cuenta con licencias activas para acceder al soporte en línea.\n\nPara validar el estado de la licencia o gestionar su activación, por favor comuníquese con el área de Servicio al Cliente.',
   nitOk: (textoEmpresa: string, cantidad: number) =>
     `✓ ${textoEmpresa} — ${cantidad} licencia(s) vigente(s)`,
 
